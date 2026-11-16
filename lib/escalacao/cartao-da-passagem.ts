@@ -72,6 +72,16 @@ export interface PassagemDaConversa {
   reconhecido_por: string | null;
   /** Resolvido pelo servidor. `null` é estado DECLARADO (self-host sem service role). */
   reconhecido_por_nome?: string | null;
+  /**
+   * O ciclo de aceite (migration 9401). Opcionais no TIPO porque fixtures e
+   * clones anteriores não os têm: ausente é lido como "sem aceite pendente".
+   */
+  estado?: string | null;
+  responsavel_user_id?: string | null;
+  urgente?: boolean | null;
+  aceita_em?: string | null;
+  aceita_por?: string | null;
+  escalada_em?: string | null;
 }
 
 /** Quem abriu a conversa, e com quem ela está. */

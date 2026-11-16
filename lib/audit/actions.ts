@@ -1641,6 +1641,18 @@ export const AUDIT_ACTIONS = [
   // leva só contagens e a chave do arquivo — nunca preço de linha.
   "tabela_de_valores.criada",
   "tabela_de_valores.importada",
+  // A passagem para uma pessoa nunca se perde (migration 9401). `accepted` é o
+  // gesto de quem diz "é comigo" (POST /conversations/:id/passagens/aceitar);
+  // `reminder_sent` e `escalated` são do cron `passagem-escalonamento`, UMA linha
+  // por efeito — varredura vazia não escreve. Metadata leva o número do
+  // lembrete, se era urgente e o desfecho do WhatsApp (vocabulário fechado),
+  // nunca telefone nem texto do cliente.
+  "handoff.accepted",
+  "handoff.reminder_sent",
+  "handoff.escalated",
+  // A configuração do escalonamento (tela IA › Aviso no WhatsApp). Metadata leva
+  // o bloco anterior e o novo — só números, horas e ids de membro.
+  "settings.escalonamento_de_passagem_updated",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

@@ -61,7 +61,7 @@ const TETO_DE_PASSAGENS = 20;
 
 /** As colunas que a tela lê. Um literal só — o supabase-js infere a linha do TIPO da string. */
 const COLUNAS =
-  "id, origem, motivo_codigo, title, body, notes, content, tentativas, cliente_avisado, aviso_motivo_codigo, caso_id, criado_em, reconhecido_em, reconhecido_por";
+  "id, origem, motivo_codigo, title, body, notes, content, tentativas, cliente_avisado, aviso_motivo_codigo, caso_id, criado_em, reconhecido_em, reconhecido_por, estado, responsavel_user_id, urgente, aceita_em, aceita_por, escalada_em";
 
 interface RouteParams {
   params: Promise<{ id: string }>;

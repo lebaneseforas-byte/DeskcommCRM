@@ -143,6 +143,8 @@ function passagem(over: Linha = {}): Linha {
     criado_em: ONTEM,
     reconhecido_em: null,
     cobrancas: 0,
+    // O default da coluna (migration 9401): o escalonamento ainda não lembrou.
+    lembretes_enviados: 0,
     ...over,
   };
 }
@@ -206,6 +208,14 @@ describe("o vigia cobra a passagem que ninguém assumiu", () => {
     const { body } = await rodar();
 
     expect(body.data?.passagens_cobradas).toBe(0);
+  });
+
+  it("a passagem que o escalonamento JÁ lembrou é dele, não deste braço (migration 9401)", async () => {
+    banco.passagens_de_atendimento = [passagem({ lembretes_enviados: 2 })];
+
+    const { body } = await rodar();
+
+    expect(body.data?.passagens_cobradas, "a mesma pessoa avisada por dois relógios").toBe(0);
   });
 
   it("cada cobrança sobe o contador DAQUELA passagem", async () => {

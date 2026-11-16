@@ -338,6 +338,11 @@ async function cobrarPassagensEsquecidas(
     .is("reconhecido_em", null)
     .lt("criado_em", corte)
     .lt("cobrancas", TETO_DE_COBRANCAS)
+    // A passagem que o escalonamento (migration 9401, cron
+    // `passagem-escalonamento`) já lembrou é dele: cobrá-la também aqui seria a
+    // mesma pessoa avisada por dois relógios. Com o escalonamento desligado o
+    // contador fica em zero, e este braço volta a ser o único — como antes.
+    .eq("lembretes_enviados", 0)
     .order("criado_em", { ascending: true })
     .limit(LIMITE_DA_VARREDURA);
 

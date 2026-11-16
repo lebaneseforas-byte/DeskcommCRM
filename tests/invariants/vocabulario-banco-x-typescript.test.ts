@@ -385,6 +385,16 @@ const PARES: Array<{
     simbolo: "MOTIVOS_DO_AVISO",
   },
   {
+    tabela: "passagens_de_atendimento",
+    coluna: "estado",
+    // lib/escalacao/escalonamento-da-passagem.ts → ESTADOS_DA_PASSAGEM (tupla
+    // `as const`). Nasce no MESMO commit da migration 9401: o cron e a rota de
+    // aceite filtram pelos estados em aberto, e um estado novo só no banco
+    // seria uma passagem viva que ninguém lembra.
+    arquivo: "lib/escalacao/escalonamento-da-passagem.ts",
+    simbolo: "ESTADOS_DA_PASSAGEM",
+  },
+  {
     tabela: "entregas_de_aviso_de_caso",
     coluna: "status",
     // lib/escalacao/vocabulario-do-aviso.ts → STATUS_DA_ENTREGA_DE_AVISO (tupla

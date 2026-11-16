@@ -12414,6 +12414,16 @@ export type Database = {
           reconhecido_por: string | null;
           tentativas: NonNullable<Json>;
           title: string | null;
+          estado: string;
+          responsavel_user_id: string | null;
+          aceita_em: string | null;
+          aceita_por: string | null;
+          urgente: boolean;
+          lembretes_enviados: number;
+          ultimo_lembrete_em: string | null;
+          escalada_em: string | null;
+          escalada_para: string | null;
+          resolvida_em: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -12436,6 +12446,16 @@ export type Database = {
           reconhecido_por?: string | null;
           tentativas?: NonNullable<Json>;
           title?: string | null;
+          estado?: string;
+          responsavel_user_id?: string | null;
+          aceita_em?: string | null;
+          aceita_por?: string | null;
+          urgente?: boolean;
+          lembretes_enviados?: number;
+          ultimo_lembrete_em?: string | null;
+          escalada_em?: string | null;
+          escalada_para?: string | null;
+          resolvida_em?: string | null;
         };
         Update: {
           aviso_motivo_codigo?: string | null;
@@ -12457,6 +12477,16 @@ export type Database = {
           reconhecido_por?: string | null;
           tentativas?: NonNullable<Json>;
           title?: string | null;
+          estado?: string;
+          responsavel_user_id?: string | null;
+          aceita_em?: string | null;
+          aceita_por?: string | null;
+          urgente?: boolean;
+          lembretes_enviados?: number;
+          ultimo_lembrete_em?: string | null;
+          escalada_em?: string | null;
+          escalada_para?: string | null;
+          resolvida_em?: string | null;
         };
         Relationships: [
           {
@@ -16458,6 +16488,10 @@ export type Database = {
       };
       fn_org_operante: { Args: { p_org: string }; Returns: boolean };
       fn_org_parada_descarta_fila: { Args: { p_org: string }; Returns: undefined };
+      fn_passagem_aceitar: {
+        Args: { p_conversation_id: string; p_organization_id: string };
+        Returns: Json;
+      };
       fn_passagem_devolvida: {
         Args: { p_conversation_id: string; p_organization_id: string };
         Returns: number;

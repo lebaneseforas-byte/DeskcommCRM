@@ -259,9 +259,18 @@ async function montarPush(admin: SupabaseClient, orgId: string, item: Aviso): Pr
 
   if (som === "pessoa") {
     const body = traduzir("Abra a conversa para responder o cliente.", idioma);
+    // O LEMBRETE da passagem que ninguém aceitou (migration 9401) é o único
+    // `handoff` com dono, e o título dele já nasceu no idioma da organização,
+    // sem dado do cliente (`lib/escalacao/lembrete-da-passagem.ts`). Repetir
+    // "A IA passou uma conversa" no terceiro lembrete diria que é uma passagem
+    // nova.
+    const titulo =
+      item.kind === "handoff" && item.para_user_id
+        ? truncar(item.title)
+        : traduzir("A IA passou uma conversa para a equipe", idioma);
     return {
       payload: {
-        title: traduzir("A IA passou uma conversa para a equipe", idioma),
+        title: titulo,
         body,
         corpoSemPrevia: body,
         tag,

@@ -52,6 +52,9 @@ APP_ORIGIN="http://app:3000"
 # `handoff-devolucao`, 5 em 5 minutos, pelo mesmo motivo: o piso do prazo é
 # 5 min e uma varredura por minuto seriam 60 varreduras/h em toda instalação
 # para um prazo que a maioria deixa em dezenas de minutos.
+#
+# O ESCALONAMENTO DA PASSAGEM (migration 9401) entra na mesma cadência de 5 em
+# 5 minutos: o menor intervalo configurável é 5 min e o urgente padrão é 15.
 CRONS="
 * * * * *|240|api/v1/cron/prospecting
 * * * * *|25|api/v1/cron/agent-dispatcher
@@ -66,6 +69,7 @@ CRONS="
 */5 * * * *|25|api/v1/cron/snooze-watcher
 */5 * * * *|60|api/v1/cron/handoff-devolucao
 */5 * * * *|60|api/v1/cron/rodizio-devolucao
+*/5 * * * *|60|api/v1/cron/passagem-escalonamento
 # A FOTO GUARDADA SEM DESCRIÇÃO (MEDIA_VISION_WITHOUT_READER=defer). De 5 em 5
 # minutos: é o prazo para um follow-up, um rascunho ou uma integração passar a ver
 # a descrição da foto que chegou quando a empresa ainda não tinha quem a lesse.

@@ -135,8 +135,20 @@ const AUTHENTICATED_PERMITIDO: readonly Excecao[] = [
       "reescrever um fato. A definer carrega a mesma guarda de fn_conversation_assign: " +
       "com sessão, exige membro `agent`+ DAQUELA organização (fn_role_at_least), e o " +
       "update é fechado por organization_id + conversation_id, só em linha ainda não " +
-      "reconhecida. tests/invariants/passagem-se-reconhece-sozinha.test.ts prova " +
+      "reconhecida (e, desde a 9401, o estado de toda passagem viva da conversa vai a " +
+      "`resolvida`). tests/invariants/passagem-se-reconhece-sozinha.test.ts prova " +
       "cross-org, viewer e a idempotência.",
+  },
+  {
+    fn: "fn_passagem_aceitar(uuid,uuid)",
+    razao:
+      "POST app/api/v1/conversations/[id]/passagens/aceitar/route.ts chama com createClient " +
+      "da sessão: o aceite é gesto de pessoa (migration 9401). Não pode ser update da " +
+      "rota: a policy de passagens_de_atendimento é `for select`. A definer exige sessão " +
+      "(auth.uid), fn_support_write_allowed, `agent`+ DAQUELA organização, e só aceita a " +
+      "passagem de que o chamador é o responsável — ou `admin`, ou sem responsável. " +
+      "tests/invariants/passagem-aceite-e-escalonamento.test.ts prova cross-org, viewer, " +
+      "outro responsável, anon e a idempotência.",
   },
   {
     fn: "fn_reply_action(uuid,uuid,text,text,text,text)",

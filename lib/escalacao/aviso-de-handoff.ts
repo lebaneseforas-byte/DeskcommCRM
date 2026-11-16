@@ -2,6 +2,8 @@ import type { EventRow, HandlerResult } from '@/lib/event-log/dispatcher';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AvisoDb, PacingDoAviso, TransporteDoAviso } from './aviso-ao-suporte';
 import { avisoDeTransferenciaLigado } from '@/lib/schemas/settings';
+import { traduzir } from '@/lib/i18n/dicionario';
+import { normalizarIdioma } from '@/lib/i18n/idiomas';
 
 /** Opt-in: usa somente o destinatário que o administrador já configurou. */
 export const EVENTO_AVISO_HANDOFF = 'ai.handoff_aviso_solicitado';
@@ -36,20 +38,45 @@ export interface AvisoHandoffDeps {
   estado(row: EventRow): Promise<EstadoEnvioHandoff | null>;
   /** `settings.crm.avisar_transferencia_no_whatsapp`; ausente = ligado. */
   transferenciasLigadas(org: string): Promise<boolean>;
+  /**
+   * `organizations.locale` — o idioma do texto do aviso. Opcional: sem ele (ou
+   * com leitura falha) o aviso sai em português, o comportamento de antes.
+   */
+  idioma?(org: string): Promise<string | null>;
   /** Compare-and-set durável: só o vencedor pode chamar o transporte. */
   reservar(row: EventRow, em: string): Promise<boolean>;
   concluir(row: EventRow, estado: EstadoEnvioHandoff): Promise<void>;
 }
 
-/** Sem nome, motivo livre, transcrição ou dado clínico na notificação externa. */
-export function textoDoAvisoHandoff(urlPublica: string, conversa: string): string | null {
+/**
+ * Sem nome, motivo livre, transcrição ou dado clínico na notificação externa.
+ *
+ * No idioma da ORGANIZAÇÃO (`organizations.locale`): quem recebe é a equipe,
+ * ninguém está logado quando o aviso sai, e uma empresa em inglês recebia o
+ * aviso em português. As frases são FIXAS e passam por `traduzir` pedaço a
+ * pedaço — o link fica fora da tradução (uma chave com o link dentro nunca
+ * casaria). Idioma desconhecido cai em português (`normalizarIdioma`), e o
+ * texto em português é byte a byte o de antes.
+ *
+ * `urgente` (o lembrete de passagem urgente, migration 9401) só acrescenta o
+ * prefixo — continua sem dado nenhum do cliente.
+ */
+export function textoDoAvisoHandoff(
+  urlPublica: string,
+  conversa: string,
+  locale?: string | null,
+  opcoes: { urgente?: boolean } = {},
+): string | null {
   if (!UUID.test(conversa)) return null;
   let origem: URL;
   try { origem = new URL(urlPublica); } catch { return null; }
   if (origem.protocol !== 'https:' || origem.username || origem.password) return null;
   const link = new URL('/app/inbox', origem.origin);
   link.searchParams.set('id', conversa);
-  return `Um atendimento precisa de uma pessoa da equipe.\n\nAbrir conversa: ${link.href}\n\nResponda pelo CRM; responder a este aviso não chega ao cliente.`;
+  const idioma = normalizarIdioma(locale ?? null);
+  const t = (texto: string) => traduzir(texto, idioma);
+  const prefixo = opcoes.urgente ? `${t('URGENTE:')} ` : '';
+  return `${prefixo}${t('Um atendimento precisa de uma pessoa da equipe.')}\n\n${t('Abrir conversa:')} ${link.href}\n\n${t('Responda pelo CRM; responder a este aviso não chega ao cliente.')}`;
 }
 
 /** Um recibo por episódio na Central; CAS no adapter preserva adendos concorrentes. */
@@ -101,7 +128,8 @@ export async function aplicaAvisoHandoff(deps: AvisoHandoffDeps, row: EventRow):
   const contexto = await deps.contexto(row.organization_id, conversa);
   if (!contexto?.emHandoff || contexto.episodio !== row.id) return cancelar('episodio_encerrado');
   if (await deps.db.contatoAnonimizado(row.organization_id, contexto.contactId)) return cancelar('contato_anonimizado');
-  const texto = textoDoAvisoHandoff(deps.urlPublica, conversa);
+  const locale = deps.idioma ? await deps.idioma(row.organization_id).catch(() => null) : null;
+  const texto = textoDoAvisoHandoff(deps.urlPublica, conversa, locale);
   if (!texto) return cancelar('endereco_publico_invalido');
   const config = await deps.db.carregaConfig(row.organization_id);
   if (!config?.ligado || !config.channel_session_id || !config.telefone_destino) return cancelar('aviso_desligado');
@@ -158,7 +186,7 @@ function lerEstado(metadata: Metadata): EstadoEnvioHandoff | null {
 
 /** Só este consumidor altera a metadata deste tipo de evento; o dreno altera status/attempts. */
 export function criarPersistenciaAvisoHandoff(admin: Admin): Pick<AvisoHandoffDeps,
-  'contexto' | 'estado' | 'reservar' | 'concluir' | 'transferenciasLigadas'> {
+  'contexto' | 'estado' | 'reservar' | 'concluir' | 'transferenciasLigadas' | 'idioma'> {
   async function metadataDoEvento(row: EventRow): Promise<Metadata> {
     const { data, error } = await admin.from('event_log').select('metadata')
       .eq('organization_id', row.organization_id).eq('id', row.id)
@@ -213,6 +241,12 @@ export function criarPersistenciaAvisoHandoff(admin: Admin): Pick<AvisoHandoffDe
       };
     },
     async estado(row) { return lerEstado(await metadataDoEvento(row)); },
+    async idioma(org) {
+      // Falha de leitura NÃO cancela o aviso: português é melhor que nenhum.
+      const { data, error } = await admin.from('organizations').select('locale').eq('id', org).maybeSingle();
+      if (error || !data) return null;
+      return (data as { locale?: string | null }).locale ?? null;
+    },
     async transferenciasLigadas(org) {
       // Erro de leitura LANÇA (o handler devolve error e o dreno tenta de novo):
       // nunca vira "ligado" para autorizar uma chamada externa.
