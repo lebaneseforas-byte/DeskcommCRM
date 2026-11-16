@@ -7305,6 +7305,10 @@ export const DICIONARIO: Traducoes = {
     es: "Si el contacto ya está en otro flujo, sale de ese y entra en este. Un flujo pausado por una persona no se cambia.",
   },
   "Incluir o responsável no corpo": { es: "Incluir al responsable en el cuerpo" },
+  "Incluir os detalhes do pedido no corpo": { es: "Incluir los detalles del pedido en el cuerpo" },
+  "Leva o título e o resumo do negócio, a última mensagem do cliente, o canal e o id da conversa. Ligue só se o outro sistema precisar mostrar o pedido.": {
+    es: "Envía el título y el resumen del negocio, el último mensaje del cliente, el canal y el id de la conversación. Actívalo solo si el otro sistema necesita mostrar el pedido.",
+  },
   "Padrão: o aviso não diz quem atende. Ligue só se o outro sistema precisar do nome da equipe.": {
     es: "Por defecto, el aviso no dice quién atiende. Actívalo solo si el otro sistema necesita el nombre del equipo.",
   },

@@ -663,6 +663,13 @@ const acoesFixas = [
        * quando quem monta a regra pede, na cara, na tela.
        */
       include_owner: z.boolean().optional(),
+      /**
+       * Opt-in do PEDIDO (`data.request`): título e resumo do negócio, última
+       * mensagem do cliente, canal e id da conversa. Desligado por padrão pela
+       * mesma razão do responsável: a mensagem do cliente é dado pessoal. Ver
+       * `lib/automation/actions/pedido-do-webhook.ts`.
+       */
+      include_request: z.boolean().optional(),
     }),
   }),
   // #2647 — a ação alcança o fluxo de ATENDIMENTO, e o caminho é o do produto

@@ -27,6 +27,7 @@ import type { ActionCtx, ActionResultDetail } from "@/lib/automation/types";
 import { assertDestinoResolvidoSeguro } from "@/lib/automation/outbound-ip";
 import { assertSafeOutboundUrl } from "@/lib/automation/outbound-url";
 import { mensagemDeErro } from "@/lib/automation/actions/erro-legivel";
+import { pedidoPublico } from "@/lib/automation/actions/pedido-do-webhook";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 import { nomesDosAtendentesCom } from "@/lib/users/nome-do-atendente";
 
@@ -413,6 +414,8 @@ export async function executeCallWebhook(
   const contactPublic = projectPublicFields(ctx.context.contact, CONTACT_PUBLIC_FIELDS);
   const ownerPublic = await responsavelPublico(ctx, config);
   const compromissoPublic = localDoCompromisso(ctx.context.appointment);
+  // Só com `include_request: true` — ver `pedido-do-webhook.ts`.
+  const pedidoPublic = await pedidoPublico(ctx, config);
   const entrega = idDaEntrega(ctx.event.id, ctx.ruleId, ctx.actionIndex ?? 0, ctx.ruleActions ?? []);
   const body = JSON.stringify({
     event: ctx.event.event_type,
@@ -426,6 +429,7 @@ export async function executeCallWebhook(
       ...(compromissoPublic ?? {}),
       // Só com `include_owner: true` (#1612) — ver `responsavelPublico`.
       ...(ownerPublic ? { owner: ownerPublic } : {}),
+      ...(pedidoPublic ? { request: pedidoPublic } : {}),
     },
   });
   // Fixos dentro da execução: o corpo e o id da entrega não mudam entre as

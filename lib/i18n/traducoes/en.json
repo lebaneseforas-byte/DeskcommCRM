@@ -3353,6 +3353,8 @@
   "Se preencher, enviaremos uma assinatura para o outro sistema conferir que fomos nós.": "If you fill this in, we'll send a signature so the other system can confirm it was us.",
   "Como o outro sistema confere a assinatura e reconhece reenvios: guia de integração em docs/integracao/webhooks-de-saida.md, na documentação do projeto.": "How the other system checks the signature and recognizes resends: integration guide at docs/integracao/webhooks-de-saida.md, in the project's documentation.",
   "Incluir o responsável no corpo": "Include the assignee in the body",
+  "Incluir os detalhes do pedido no corpo": "Include the request details in the body",
+  "Leva o título e o resumo do negócio, a última mensagem do cliente, o canal e o id da conversa. Ligue só se o outro sistema precisar mostrar o pedido.": "Sends the deal title and summary, the customer's last message, the channel and the conversation id. Turn this on only if the other system needs to show the request.",
   "Padrão: o aviso não diz quem atende. Ligue só se o outro sistema precisar do nome da equipe.": "Default: the notice doesn't say who's attending. Turn this on only if the other system needs the team member's name.",
   "Quando alguém comparecer ao compromisso": "When someone attends the appointment",
   "Quando alguém faltar ao compromisso": "When someone misses the appointment",

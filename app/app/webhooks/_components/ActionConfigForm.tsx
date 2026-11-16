@@ -160,7 +160,7 @@ export type ActionItem =
       config: { tags: string[]; destino?: "card" | "contato" };
     }
   | { type: "assign_owner"; config: ConfigDoAtribuir }
-  | { type: "call_webhook"; config: { url: string; secret?: string; secret_enc?: string; include_owner?: boolean } }
+  | { type: "call_webhook"; config: { url: string; secret?: string; secret_enc?: string; include_owner?: boolean; include_request?: boolean } }
   | {
       type: "start_message_flow";
       config: { flow_pointer_id: string; surface?: "followup" | "atendimento"; replace_live_flow?: boolean };
@@ -1407,7 +1407,7 @@ function CreateTaskForm({
 function CallWebhookForm({
   config,
   onChange,
-}: FormProps<{ url: string; secret?: string; secret_enc?: string; include_owner?: boolean }>) {
+}: FormProps<{ url: string; secret?: string; secret_enc?: string; include_owner?: boolean; include_request?: boolean }>) {
   const t = useT();
   // O segredo é write-only: o servidor guarda cifrado (secret_enc) e nunca
   // devolve o valor. Digitar aqui envia `secret` novo; deixar em branco
@@ -1466,6 +1466,22 @@ function CallWebhookForm({
         <Switch
           checked={config.include_owner === true}
           onCheckedChange={(v) => onChange({ ...config, include_owner: v ? true : undefined })}
+        />
+      </div>
+      {/* Opt-in do pedido (`data.request`) — desligado por padrão: leva a última
+          mensagem do cliente, que é dado pessoal. */}
+      <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+        <div className="space-y-0.5">
+          <Label>{t("Incluir os detalhes do pedido no corpo")}</Label>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "Leva o título e o resumo do negócio, a última mensagem do cliente, o canal e o id da conversa. Ligue só se o outro sistema precisar mostrar o pedido.",
+            )}
+          </p>
+        </div>
+        <Switch
+          checked={config.include_request === true}
+          onCheckedChange={(v) => onChange({ ...config, include_request: v ? true : undefined })}
         />
       </div>
     </div>

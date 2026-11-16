@@ -36,6 +36,25 @@ Um `POST` com `Content-Type: application/json` e este corpo:
 | `delivery_id` | O id da entrega — o mesmo valor do cabeçalho `X-Webhook-Delivery`. |
 | `data` | Os dados do evento, com a projeção pública do lead, do contato e do compromisso quando existem. |
 
+### O pedido do cliente (`data.request`), só quando a regra pede
+
+Na ação "Avisar outro sistema", a opção **Incluir os detalhes do pedido no corpo**
+(`include_request: true`) acrescenta ao `data` um objeto `request`. Desligada, a
+chave não existe. Todos os campos são opcionais; o que o CRM não sabe fica de fora.
+
+| Campo | O que é |
+|---|---|
+| `request.title` | O título do negócio (até 140 caracteres). |
+| `request.summary` | A descrição do negócio, que a IA mantém como resumo do pedido (até 1000). |
+| `request.last_message` | A última mensagem recebida do cliente com texto, ou a transcrição da mídia (até 1000). |
+| `request.channel` | `whatsapp`, `instagram`, `facebook` ou `other`. |
+| `request.conversation_id` | O id da conversa; abre em `/app/inbox?id=<id>`. |
+
+O negócio é o do evento ou, num gatilho de contato, o negócio aberto mais
+recente do contato. A conversa é a do evento ou a conversa individual mais
+recente do contato. A última mensagem é dado pessoal: ligue a opção só para um
+sistema da própria empresa.
+
 ## 2. Os cabeçalhos
 
 | Cabeçalho | Quando sai | O que significa |
