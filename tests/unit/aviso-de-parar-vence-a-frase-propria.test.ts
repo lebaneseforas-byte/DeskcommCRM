@@ -94,6 +94,14 @@ describe("emissor do CRM (`avisarLeadDoCrm`)", () => {
         const cadeia: Record<string, unknown> = {};
         let direcao = "";
         Object.assign(cadeia, {
+          // Lista de candidatos da régua do motor (`resolverAgenteDaConversa`).
+          is: async () => ({
+            data:
+              tabela === "ai_agents"
+                ? [{ id: AGENTE, config: { aviso_de_handoff: FRASE }, paused_at: null, published_version_id: "v1", archived_at: null }]
+                : [],
+            error: null,
+          }),
           select: () => cadeia,
           eq: (coluna: string, valor: unknown) => {
             if (coluna === "direction") direcao = String(valor);
@@ -113,7 +121,7 @@ describe("emissor do CRM (`avisarLeadDoCrm`)", () => {
             ),
           maybeSingle: async () => {
             if (tabela === "organizations") return { data: { locale: "pt-BR" }, error: null };
-            if (tabela === "conversations") return { data: { active_ai_agent_id: AGENTE }, error: null };
+            if (tabela === "conversations") return { data: { active_ai_agent_id: AGENTE, channel_session_id: null }, error: null };
             if (tabela === "ai_agents") return { data: { config: { aviso_de_handoff: FRASE } }, error: null };
             throw new Error(`tabela inesperada: ${tabela}`);
           },

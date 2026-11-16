@@ -267,13 +267,64 @@ const FECHOS_TR = {
   ],
 } as const;
 
+/**
+ * OS MESMOS avisos em inglês. Sem esta tabela, uma organização em `en` caía no
+ * português: medido numa loja libanesa em inglês (16/11/2026), a cliente
+ * irritada recebeu "Vou pedir ajuda de alguém da equipe…" no meio de uma conversa
+ * em inglês e árabe, porque o worker de sentimento passou a conversa adiante e
+ * este é o texto que o cliente lê nessa hora.
+ *
+ * Tratamento direto e cordial, sem prazo: o fecho promete o mesmo que o
+ * português, e nada além.
+ */
+const ABERTURAS_EN: Record<MotivoDoAviso, readonly string[]> = {
+  suspeita_de_opt_out: [
+    "Understood. I will stop sending you automatic messages here.",
+    "Noted: no more automatic messages will go to this number.",
+    "Okay! Automatic messages on this channel are switched off now.",
+  ],
+  pediu_humano: [
+    "Of course! I am calling someone from the team to talk with you.",
+    "No problem. A person from our team has just been asked to continue from here.",
+    "Sure. Your conversation is now with a member of our staff.",
+  ],
+  orcamento_de_ia: [
+    "I am passing your request to a person on our team.",
+    "From here on, someone from the team will help you.",
+    "This conversation is being transferred to a member of our staff.",
+  ],
+  outro: [
+    "A person from our team is better placed to handle this, and they have been notified.",
+    "I have asked a colleague to look into this with you.",
+    "Someone from the team will take it from here with you.",
+  ],
+};
+
+const FECHOS_EN = {
+  sem_equipe: [
+    "Your request is recorded and the team will reply as soon as possible.",
+    "Everything is noted; we will get back to you as soon as we can.",
+    "It is registered, and someone will answer you at the first opportunity.",
+  ],
+  fora_de_expediente: [
+    "Nobody is available right now, but your request has been recorded.",
+    "No one is free at the moment; I left your request noted for the team.",
+    "There is no staff member available this instant; your conversation is in the queue.",
+  ],
+  com_equipe: [
+    "Please wait a moment here in the chat.",
+    "Stay here, someone will reply shortly.",
+    "Just a moment in this conversation, please.",
+  ],
+} as const;
+
 interface TextosDoAviso {
   aberturas: Record<MotivoDoAviso, readonly string[]>;
   fechos: { sem_equipe: readonly string[]; fora_de_expediente: readonly string[]; com_equipe: readonly string[] };
   fechoDoOptOut: string;
 }
 
-const TEXTOS: Record<"pt" | "es" | "tr", TextosDoAviso> = {
+const TEXTOS: Record<"pt" | "es" | "tr" | "en", TextosDoAviso> = {
   pt: {
     aberturas: ABERTURAS,
     fechos: FECHOS,
@@ -289,6 +340,11 @@ const TEXTOS: Record<"pt" | "es" | "tr", TextosDoAviso> = {
     fechos: FECHOS_TR,
     fechoDoOptOut: "Talebinizi onaylaması için ekibimizden birine ilettim.",
   },
+  en: {
+    aberturas: ABERTURAS_EN,
+    fechos: FECHOS_EN,
+    fechoDoOptOut: "I passed your request to a person on the team to confirm it.",
+  },
 };
 
 /**
@@ -299,6 +355,7 @@ function textosDoIdioma(idioma: string | null | undefined): TextosDoAviso {
   const codigo = (idioma ?? "").trim().toLowerCase();
   if (codigo.startsWith("es")) return TEXTOS.es;
   if (codigo.startsWith("tr")) return TEXTOS.tr;
+  if (codigo.startsWith("en")) return TEXTOS.en;
   return TEXTOS.pt;
 }
 

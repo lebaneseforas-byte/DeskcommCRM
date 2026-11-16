@@ -50,6 +50,7 @@ import {
 } from "@/lib/escalacao/aviso-ao-lead";
 import { comecaComPalavraDeSaida } from "@/lib/opt-out/deteccao";
 import { lerFraseDoAvisoConfigurada } from "@/lib/escalacao/frase-do-aviso-configurada";
+import { resolverAgenteDaConversa, type CandidatoDeAgente } from "@/lib/ai/agents/agente-da-conversa";
 import { carregarRosterDeAtendimento, podeAssumirAgora } from "@/lib/escalacao/atendentes";
 // Dois `MotivoDoAviso` no repositório: o de `escalacao/aviso-ao-lead` diz QUE
 // FRASE o cliente lê; este diz POR QUE ele não leu nada. O apelido impede a
@@ -279,12 +280,21 @@ export async function avisarLeadDoCrm(
 
 
 /**
- * A frase própria do tenant (#3725): conversa → agente ativo → `ai_agents.config`.
+ * A frase própria do tenant (#3725): conversa → agente que a atende → `ai_agents.config`.
  *
- * Duas leituras, e nenhuma delas pode custar o aviso: qualquer erro, campo
- * ausente ou agente sem frase devolve `null`, e `textoDoAviso` sai com o padrão
- * do produto. É a mesma direção de falha do resto do arquivo — o cliente ser
- * avisado importa mais do que o tom do aviso.
+ * O agente sai de `resolverAgenteDaConversa`, a régua do motor (stickiness da
+ * conversa → versão publicada no número → agente único), e NÃO só de
+ * `conversations.active_ai_agent_id`. Ler só a stickiness perdia a frase
+ * justamente aqui: a passagem anterior zera a coluna (`human-handoff.ts`), e
+ * numa conversa que nunca passou pelo router ela nunca foi gravada. Medido em
+ * 16/11/2026 numa organização em inglês com a frase configurada nos três
+ * agentes: o worker de sentimento passou a conversa adiante, a coluna estava
+ * nula, e a cliente recebeu o padrão do produto em vez da frase da empresa.
+ *
+ * Nenhuma leitura pode custar o aviso: qualquer erro, campo ausente ou agente
+ * sem frase devolve `null`, e `textoDoAviso` sai com o padrão do produto. É a
+ * mesma direção de falha do resto do arquivo — o cliente ser avisado importa
+ * mais do que o tom do aviso.
  */
 async function fraseDoAgente(
   admin: SupabaseClient,
@@ -293,19 +303,35 @@ async function fraseDoAgente(
   try {
     const { data: conversa } = await admin
       .from("conversations")
-      .select("active_ai_agent_id")
+      .select("channel_session_id, active_ai_agent_id")
       .eq("organization_id", input.organizationId)
       .eq("id", input.conversationId)
       .maybeSingle();
-    const agentId = (conversa as { active_ai_agent_id?: string | null } | null)?.active_ai_agent_id;
-    if (!agentId) return null;
-    const { data: agente } = await admin
+    const linha = conversa as { channel_session_id?: string | null; active_ai_agent_id?: string | null } | null;
+    if (!linha) return null;
+
+    let versoesPublicadasNaSessao: string[] = [];
+    if (linha.channel_session_id) {
+      const { data: versoes } = await admin
+        .from("ai_agent_versions")
+        .select("id")
+        .eq("organization_id", input.organizationId)
+        .eq("channel_session_id", linha.channel_session_id)
+        .eq("status", "published");
+      versoesPublicadasNaSessao = ((versoes ?? []) as { id: string }[]).map((v) => v.id);
+    }
+
+    const { data: candidatos } = await admin
       .from("ai_agents")
-      .select("config")
+      .select("id, config, kind, is_active, paused_at, published_version_id, archived_at, priority, created_at")
       .eq("organization_id", input.organizationId)
-      .eq("id", agentId)
-      .maybeSingle();
-    return lerFraseDoAvisoConfigurada((agente as { config?: unknown } | null)?.config);
+      .is("archived_at", null);
+
+    const { agente } = resolverAgenteDaConversa(
+      (candidatos ?? []) as Array<CandidatoDeAgente & { config: unknown }>,
+      { active_ai_agent_id: linha.active_ai_agent_id ?? null, versoesPublicadasNaSessao },
+    );
+    return lerFraseDoAvisoConfigurada(agente?.config);
   } catch {
     return null;
   }
