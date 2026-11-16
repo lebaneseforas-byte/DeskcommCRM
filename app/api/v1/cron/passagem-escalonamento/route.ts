@@ -26,9 +26,13 @@
  * O menor intervalo configurável é 5 min e o default urgente é 15. Rodar a cada
  * minuto seria 60 varreduras/h por um prazo que, no pior caso, atrasa 5 min.
  *
+ * Antes de decidir, a passagem viva SEM responsável pergunta de novo quem é
+ * (`completarResponsavel`): a rota por etiqueta salva depois da passagem passa
+ * a valer para ela.
  * Auth: o mesmo contrato dos demais crons (`autorizaCron`). Audita SÓ quando
- * lembrou ou escalou — uma linha por efeito, escrita pelo efeito
- * (`handoff.reminder_sent`, `handoff.escalated`); rodada vazia não escreve nada.
+ * lembrou, escalou ou preencheu um responsável — uma linha por efeito, escrita pelo efeito
+ * (`handoff.reminder_sent`, `handoff.escalated`, `handoff.responsible_assigned`);
+ * rodada vazia não escreve nada.
  * Organização parada (`idsDeOrgsParadas`) não é varrida: ela não fala.
  */
 import { randomUUID } from "node:crypto";
@@ -51,6 +55,7 @@ import {
   type OrganizacaoDoEscalonamento,
 } from "@/lib/escalacao/lembrete-da-passagem";
 import { logger } from "@/lib/logger";
+import { completarResponsavel } from "@/lib/escalacao/responsavel-tardio";
 import { idsDeOrgsParadas } from "@/lib/organizacao/operante";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -128,10 +133,13 @@ async function handle(req: NextRequest): Promise<Response> {
   let lembretes = 0;
   let escaladas = 0;
   let corridasPerdidas = 0;
-  for (const lida of candidatas) {
-    const org = porOrg.get(lida.organization_id);
+  for (const lidaDoBanco of candidatas) {
+    const org = porOrg.get(lidaDoBanco.organization_id);
     if (!org) continue;
     try {
+      // A passagem que nasceu antes da rota por etiqueta ganha o responsável
+      // agora — senão o lembrete sai `sem_responsavel` para sempre.
+      const lida = await completarResponsavel(admin, lidaDoBanco, requestId);
       const r = await aplicarEscalonamento(efeitos, {
         lida,
         config: lerEscalonamento(org.settings),
@@ -146,7 +154,7 @@ async function handle(req: NextRequest): Promise<Response> {
       // esperando, e esta volta na próxima (o CAS não foi gravado, ou foi e o
       // teto segura).
       logger.error("[passagem-escalonamento] passo falhou", {
-        passagem_id: lida.id,
+        passagem_id: lidaDoBanco.id,
         error: err instanceof Error ? err.message : String(err),
         requestId,
       });

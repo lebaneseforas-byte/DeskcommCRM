@@ -310,3 +310,31 @@ describe("9401 — resolver e reabrir", () => {
     expect(campo("estado", CONV2)).toBe("pendente");
   });
 });
+
+describe("9401 — a varredura pode perguntar o responsável de novo", () => {
+  // `lib/escalacao/responsavel-tardio.ts` chama esta função pela service key
+  // (PostgREST rpc) para a passagem viva que nasceu antes da rota por etiqueta.
+  // Ela só existe se a service_role puder executá-la — e a anon key não pode.
+  const assinatura = "public.fn_passagem_responsavel_inicial(uuid, uuid, uuid)";
+  it("service_role executa; anon e authenticated não", () => {
+    expect(sql(`select has_function_privilege('service_role', '${assinatura}', 'execute');`).trim()).toBe("t");
+    expect(sql(`select has_function_privilege('anon', '${assinatura}', 'execute');`).trim()).toBe("f");
+    expect(sql(`select has_function_privilege('authenticated', '${assinatura}', 'execute');`).trim()).toBe("f");
+  });
+
+  it("a rota salva DEPOIS da passagem: nada a alcança sozinho, e perguntar de novo acha o responsável", () => {
+    // A etiqueta chega ANTES da rota existir (a ordem medida em produção).
+    sql(`update public.conversations set tags = array['projeto'] where id = '${CONV2}';`);
+    inserirPassagem(CONV2, C2);
+    expect(campo("responsavel_user_id", CONV2)).toBe("<null>");
+    // A rota é salva depois: nenhum gatilho roda, a passagem segue sem ninguém.
+    sql(`update public.organizations
+            set settings = '{"escalonamento_de_passagem":{"rota_por_etiqueta":{"projeto":"${DONO}"}}}'::jsonb
+          where id = '${ORG}';`);
+    expect(campo("responsavel_user_id", CONV2)).toBe("<null>");
+    // A pergunta que a varredura faz (a mesma função do nascimento) acha o dono.
+    expect(
+      texto(`select coalesce(public.fn_passagem_responsavel_inicial('${ORG}', '${CONV2}', '${C2}')::text, '<null>');`),
+    ).toBe(DONO);
+  });
+});

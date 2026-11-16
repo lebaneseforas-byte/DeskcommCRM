@@ -1650,6 +1650,10 @@ export const AUDIT_ACTIONS = [
   "handoff.accepted",
   "handoff.reminder_sent",
   "handoff.escalated",
+  // A passagem viva que nasceu sem responsável e ganhou um na varredura
+  // (`lib/escalacao/responsavel-tardio.ts`): a rota por etiqueta salva depois da
+  // passagem. Uma linha por passagem preenchida; metadata leva o id do membro.
+  "handoff.responsible_assigned",
   // A configuração do escalonamento (tela IA › Aviso no WhatsApp). Metadata leva
   // o bloco anterior e o novo — só números, horas e ids de membro.
   "settings.escalonamento_de_passagem_updated",
