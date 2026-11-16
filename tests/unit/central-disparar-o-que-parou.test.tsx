@@ -13,6 +13,8 @@ const ITEM = {
   destination: { estado: "disponivel", rotulo: "Ver na atividade das automações", href: "/app/webhooks?aba=atividade" },
 };
 const h = vi.hoisted(() => ({ itens: [] as unknown[], disparar: vi.fn() }));
+// O botão Aceitar da passagem (migration 9401): fora do recorte deste arquivo.
+vi.mock("@/hooks/inbox/useAceitarPassagem", () => ({ useAceitarPassagem: () => ({ mutate: vi.fn(), isPending: false }) }));
 vi.mock("@/hooks/ai/useAgentInbox", () => ({
   useAgentInbox: () => ({ data: { items: h.itens, open_count: h.itens.length }, error: null, isLoading: false, isError: false, refetch: vi.fn(), isFetching: false, podeConsultar: true }),
   useUpdateInboxItem: () => ({ mutate: vi.fn(), isPending: false, isError: false }),

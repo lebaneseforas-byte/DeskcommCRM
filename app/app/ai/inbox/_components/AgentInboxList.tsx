@@ -22,6 +22,7 @@ import { linkDePagamentoSeguro } from "@/lib/cobranca/link";
 import type { REF_DO_AVISO_DE_PARADA } from "@/lib/automation/parada-no-assistido";
 import { Bell, Check } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
+import { useAceitarPassagem } from "@/hooks/inbox/useAceitarPassagem";
 import { ApiError } from "@/lib/api/types";
 
 const SEVERITY_VARIANT: Record<AgentInboxSeverity, "info" | "warning" | "error"> = {
@@ -43,6 +44,11 @@ export function AgentInboxList({ canResolve, podeDisparar = false }: { canResolv
   const update = useUpdateInboxItem();
   const resolveAll = useResolveAllInboxItems();
   const disparar = useDispararAcoesParadas();
+  // "É comigo" direto do aviso de passagem (migration 9401). Quem não pode
+  // aceitar recebe o motivo da rota (403/404) no toast — a Central não sabe
+  // quem é o responsável de cada passagem, e perguntar por aviso seria uma
+  // consulta por linha.
+  const aceitar = useAceitarPassagem();
 
   /*
    * QUEM NÃO ALCANÇA A CENTRAL NÃO LÊ "NENHUM AVISO EM ABERTO" (issue #3147).
@@ -151,6 +157,12 @@ export function AgentInboxList({ canResolve, podeDisparar = false }: { canResolv
                   : undefined
               }
               disparando={disparar.isPending}
+              onAceitar={
+                item.kind === "handoff" && item.ref_kind === "conversation" && item.ref_id && item.status !== "resolved"
+                  ? () => aceitar.mutate(item.ref_id!)
+                  : undefined
+              }
+              aceitando={aceitar.isPending}
             />
           ))}
         </ul>
@@ -167,6 +179,8 @@ function InboxRow({
   onToggle,
   onDisparar,
   disparando = false,
+  onAceitar,
+  aceitando = false,
 }: {
   item: AgentInboxItem;
   canResolve: boolean;
@@ -174,6 +188,8 @@ function InboxRow({
   onToggle: (status: "open" | "resolved") => void;
   onDisparar?: () => void;
   disparando?: boolean;
+  onAceitar?: () => void;
+  aceitando?: boolean;
 }) {
   const localeDaData = useLocaleDeData();
   const t = useT();
@@ -206,6 +222,11 @@ function InboxRow({
         {item.destination.estado === "disponivel" ? (
           <Button asChild size="sm" variant="link" className="mt-1 h-auto whitespace-normal px-0 text-left max-md:min-h-11">
             <Link href={item.destination.href}>{t(item.destination.rotulo)}</Link>
+          </Button>
+        ) : null}
+        {onAceitar ? (
+          <Button size="sm" className="ml-3 mt-1" disabled={aceitando} onClick={onAceitar} data-testid="aviso-aceitar-passagem">
+            {t("Aceitar")}
           </Button>
         ) : null}
         {onDisparar ? (

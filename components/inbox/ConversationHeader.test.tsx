@@ -21,6 +21,9 @@ const claimMutate = vi.hoisted(() => vi.fn());
 const resposta = vi.hoisted(() => ({ endereco: undefined as EnderecoDaResposta | undefined }));
 const iaComDonoMutate = vi.hoisted(() => vi.fn());
 
+// O botão Aceitar da passagem (migration 9401): fora do recorte deste arquivo.
+vi.mock("@/hooks/inbox/useAceitarPassagem", () => ({ useAceitarPassagem: () => ({ mutate: vi.fn(), isPending: false }) }));
+vi.mock("@/hooks/inbox/usePassagensDaConversa", () => ({ usePassagensDaConversa: () => [] }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: "u1", support: null } }),
 }));

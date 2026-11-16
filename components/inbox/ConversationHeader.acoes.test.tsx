@@ -42,6 +42,9 @@ const estado = vi.hoisted(() => ({
   automaticoDaOrg: true as boolean | undefined,
 }));
 
+// O botão Aceitar da passagem (migration 9401): fora do recorte deste arquivo.
+vi.mock("@/hooks/inbox/useAceitarPassagem", () => ({ useAceitarPassagem: () => ({ mutate: vi.fn(), isPending: false }) }));
+vi.mock("@/hooks/inbox/usePassagensDaConversa", () => ({ usePassagensDaConversa: () => [] }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useAuth: () => estado.auth,
   usePermission: () => true,

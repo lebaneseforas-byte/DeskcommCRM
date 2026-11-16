@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { AgentInboxList } from "@/app/app/ai/inbox/_components/AgentInboxList";
 import { useAgentInbox, useResolveAllInboxItems, useUpdateInboxItem, type AgentInboxItem } from "@/hooks/ai/useAgentInbox";
 import { ApiError } from "@/lib/api/types";
+// O botão Aceitar da passagem (migration 9401): fora do recorte deste arquivo.
+vi.mock("@/hooks/inbox/useAceitarPassagem", () => ({ useAceitarPassagem: () => ({ mutate: vi.fn(), isPending: false }) }));
 vi.mock("@/hooks/ai/useAgentInbox", () => ({ useAgentInbox: vi.fn(), useUpdateInboxItem: vi.fn(), useResolveAllInboxItems: vi.fn(), useDispararAcoesParadas: () => ({ mutate: vi.fn(), isPending: false, isError: false }) }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (s: string) => s }));
 vi.mock("@/hooks/i18n/useLocaleDeData", () => ({ useLocaleDeData: () => undefined }));

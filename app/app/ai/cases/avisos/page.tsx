@@ -33,6 +33,8 @@ import { createClient } from "@/lib/supabase/server";
 
 import { AvisoDeTransferencia } from "./_components/AvisoDeTransferencia";
 import { AvisoNoWhatsApp } from "./_components/AvisoNoWhatsApp";
+import { EscalonamentoDaPassagem } from "./_components/EscalonamentoDaPassagem";
+import { lerEscalonamento } from "@/lib/escalacao/escalonamento-da-passagem";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Aviso no WhatsApp" };
@@ -68,6 +70,12 @@ export default async function AvisoDeCasoPage() {
       </header>
       <AvisoNoWhatsApp />
       <AvisoDeTransferencia ligada={transferencias} />
+      {/* Quando ninguém ACEITA a passagem (migration 9401): lembretes, reserva
+          para urgentes, responsável por etiqueta e horário sem WhatsApp. */}
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">{traduzir("Quando ninguém aceita um atendimento", idioma)}</h2>
+        <EscalonamentoDaPassagem inicial={lerEscalonamento(data?.settings)} />
+      </section>
     </div>
   );
 }

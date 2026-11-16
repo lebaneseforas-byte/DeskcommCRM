@@ -57,6 +57,9 @@ import type { ConversationWithContact } from "@/hooks/inbox/useConversationsReal
 import { rotuloParaAEquipe } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
 import { useEnderecoDaResposta } from "@/hooks/inbox/useEnderecoDaResposta";
+import { usePassagensDaConversa } from "@/hooks/inbox/usePassagensDaConversa";
+import { useAceitarPassagem } from "@/hooks/inbox/useAceitarPassagem";
+import { passagemParaAceitar } from "@/lib/escalacao/escalonamento-da-passagem";
 import { rotuloDoCanalDaConversa } from "@/lib/channels/estado";
 
 interface Props {
@@ -239,6 +242,20 @@ export function ConversationHeader({
   // leitura-só, porque a ordem dos hooks não pode mudar entre renderizações.
   const enderecoDaResposta = useEnderecoDaResposta(conversation.id, conversation.last_inbound_at ?? null);
   const endereco = enderecoDaResposta.data?.data ?? null;
+
+  /**
+   * ACEITAR A PASSAGEM (migration 9401). Entregue não é aceita: a conversa que
+   * o rodízio, uma transferência ou a escalada pôs com esta pessoa continua
+   * sendo cobrada até ela dizer "é comigo". O botão só aparece para quem a rota
+   * aceita (o responsável, `admin`, ou qualquer um quando ninguém responde por
+   * ela) — a mesma régua de `fn_passagem_aceitar`, via `passagemParaAceitar`.
+   * A leitura é a do cartão da passagem (mesma chave de cache, sem consulta a
+   * mais), e fica ANTES do retorno de leitura-só pela ordem dos hooks.
+   */
+  const passagens = usePassagensDaConversa(conversation.id);
+  const aceitar = useAceitarPassagem();
+  const ehAdminDaOrg = activeOrg != null && ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin;
+  const passagemAceitavel = passagemParaAceitar(passagens, { userId: user.id, ehAdmin: ehAdminDaOrg });
 
   /**
    * QUEM MANDA, uma pergunta com uma resposta.
@@ -500,7 +517,20 @@ export function ConversationHeader({
           atendenteId={user.id}
           modo="presenca"
         />
-        {podeAssumir && (
+        {passagemAceitavel && (
+          <Button
+            size="sm"
+            variant={passagemAceitavel.urgente ? "destructive" : "default"}
+            className="max-md:order-first"
+            data-testid="acao-aceitar-passagem"
+            disabled={aceitar.isPending}
+            title={t("Você confirma que vai atender: a conversa fica com você e os lembretes param.")}
+            onClick={() => aceitar.mutate(conversation.id)}
+          >
+            {t("Aceitar")}
+          </Button>
+        )}
+        {podeAssumir && !passagemAceitavel && (
           <Button
             size="sm"
             variant="default"

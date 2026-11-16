@@ -33,6 +33,8 @@ import {
   type AgentInboxItem,
 } from "@/hooks/ai/useAgentInbox";
 
+// O botão Aceitar da passagem (migration 9401): fora do recorte deste arquivo.
+vi.mock("@/hooks/inbox/useAceitarPassagem", () => ({ useAceitarPassagem: () => ({ mutate: vi.fn(), isPending: false }) }));
 vi.mock("@/hooks/ai/useAgentInbox", () => ({
   useAgentInbox: vi.fn(),
   useUpdateInboxItem: vi.fn(),
