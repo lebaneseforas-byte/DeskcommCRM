@@ -9859,7 +9859,7 @@
   "Lembrar quando ninguém aceita um atendimento": "Remind when nobody accepts a conversation",
   "Quando a IA passa uma conversa para a equipe, o responsável precisa tocar em Aceitar. Enquanto ninguém aceita, ele recebe lembretes na Central, no celular e, se o aviso no WhatsApp estiver ligado, no WhatsApp dele.": "When the AI passes a conversation to the team, the person responsible must tap Accept. Until someone accepts, they get reminders in the alert center, on their phone and, if the WhatsApp alert is on, on their WhatsApp.",
   "Urgente: lembrar a cada (minutos)": "Urgent: remind every (minutes)",
-  "Urgente é a conversa ou o negócio com a etiqueta urgente ou reclamação.": "Urgent means the conversation or deal has the tag urgente or reclamação.",
+  "Urgente é a conversa ou o negócio com a etiqueta urgente ou reclamação.": "Urgent means the conversation or deal is tagged urgent or complaint (urgente or reclamacao).",
   "Urgente: passar para o reserva depois de (lembretes)": "Urgent: pass to the backup after (reminders)",
   "Normal: lembrar a cada (minutos)": "Normal: remind every (minutes)",
   "Normal: máximo de lembretes": "Normal: maximum reminders",
