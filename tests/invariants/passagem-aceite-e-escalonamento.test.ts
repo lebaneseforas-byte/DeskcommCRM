@@ -17,6 +17,9 @@
  *   · as colunas novas herdam a RLS da tabela: o vizinho não lê, e ninguém
  *     reescreve o estado pela REST.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { motivoDoErro, sql } from "./psql-transporte";
@@ -336,5 +339,69 @@ describe("9401 — a varredura pode perguntar o responsável de novo", () => {
     expect(
       texto(`select coalesce(public.fn_passagem_responsavel_inicial('${ORG}', '${CONV2}', '${C2}')::text, '<null>');`),
     ).toBe(DONO);
+  });
+});
+
+describe("9402 — uma passagem viva por conversa", () => {
+  function contar(estado: string, conversa = CONV1): string {
+    return texto(`select count(*) from public.passagens_de_atendimento
+                   where organization_id = '${ORG}' and conversation_id = '${conversa}' and estado = '${estado}';`);
+  }
+
+  it("a segunda passagem da mesma conversa sucede a primeira: herda responsável e urgência, a anterior fecha", () => {
+    inserirPassagem(CONV1, C1);
+    sql(`update public.passagens_de_atendimento set responsavel_user_id = '${DONO}', estado = 'atribuida', urgente = true
+          where organization_id = '${ORG}' and conversation_id = '${CONV1}';`);
+    inserirPassagem(CONV1, C1);
+    expect(contar("resolvida")).toBe("1");
+    expect(campo("estado")).toBe("atribuida");
+    expect(campo("responsavel_user_id")).toBe(DONO);
+    expect(campo("urgente")).toBe("true");
+    expect(texto(`select count(*) from public.passagens_de_atendimento where organization_id = '${ORG}'
+                   and conversation_id = '${CONV1}' and estado in ('pendente','atribuida','reaberta');`)).toBe("1");
+  });
+
+  it("a passagem de OUTRA conversa não é tocada", () => {
+    inserirPassagem(CONV1, C1);
+    inserirPassagem(CONV2, C2);
+    expect(contar("pendente", CONV1)).toBe("1");
+    expect(contar("pendente", CONV2)).toBe("1");
+  });
+
+  it("passagem já ACEITA não é fechada pela nova", () => {
+    inserirPassagem(CONV1, C1);
+    sql(`update public.passagens_de_atendimento set estado = 'aceita', responsavel_user_id = '${DONO}', aceita_em = now(), aceita_por = '${DONO}'
+          where organization_id = '${ORG}' and conversation_id = '${CONV1}';`);
+    inserirPassagem(CONV1, C1);
+    expect(contar("aceita")).toBe("1");
+    expect(contar("resolvida")).toBe("0");
+  });
+
+  it("o backfill fecha as duplicadas que já existem e a mais nova herda; rodar de novo não muda nada", () => {
+    // Reproduz o estado de antes da 9402: os gatilhos desligados, duas vivas.
+    sql(`alter table public.passagens_de_atendimento disable trigger trg_passagem_encerra_a_anterior;
+         alter table public.passagens_de_atendimento disable trigger trg_passagem_sucede_a_viva;`);
+    try {
+      inserirPassagem(CONV1, C1);
+      sql(`update public.passagens_de_atendimento set responsavel_user_id = '${DONO}', estado = 'atribuida'
+            where organization_id = '${ORG}' and conversation_id = '${CONV1}';`);
+      inserirPassagem(CONV1, C1);
+    } finally {
+      sql(`alter table public.passagens_de_atendimento enable trigger trg_passagem_encerra_a_anterior;
+           alter table public.passagens_de_atendimento enable trigger trg_passagem_sucede_a_viva;`);
+    }
+    expect(texto(`select count(*) from public.passagens_de_atendimento where organization_id = '${ORG}'
+                   and conversation_id = '${CONV1}' and estado in ('pendente','atribuida','reaberta');`)).toBe("2");
+    const migracao = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261116210000_9402_passagem_viva_unica_por_conversa.sql"),
+      "utf8",
+    );
+    const backfill = migracao.slice(migracao.indexOf("-- Backfill"));
+    sql(backfill);
+    expect(contar("resolvida")).toBe("1");
+    expect(campo("estado")).toBe("atribuida");
+    expect(campo("responsavel_user_id")).toBe(DONO);
+    sql(backfill);
+    expect(contar("resolvida")).toBe("1");
   });
 });
