@@ -4,7 +4,8 @@
  *
  * Hoje: as de editar os próprios assistentes (`catalogo/agentes.ts`) e as de ler
  * os relatórios do dia (`catalogo/relatorios.ts`) e as de manter a base de
- * conhecimento e os produtos (`catalogo/cadastros.ts`), que são de quem gerencia. Um
+ * conhecimento e os produtos (`catalogo/cadastros.ts`) e as de montar os
+ * follow-ups e as respostas prontas (`catalogo/sequencias.ts`), que são de quem gerencia. Um
  * assistente que pudesse ler e reescrever as próprias instruções seria a pior
  * porta do produto; o turno já não as monta (`apenasHumano`, ver
  * `lib/ai/runtime/tools.ts`) e o papel delas é `admin`, acima do `ai_operator`
@@ -22,10 +23,11 @@
 import { TOOLS_AGENTES } from "./catalogo/agentes";
 import { TOOLS_CADASTROS } from "./catalogo/cadastros";
 import { TOOLS_RELATORIOS } from "./catalogo/relatorios";
+import { TOOLS_SEQUENCIAS } from "./catalogo/sequencias";
 
 export const MOTIVO_SO_DO_ADMINISTRADOR =
   "Esta capacidade é de quem administra ou gerencia a empresa, por um aplicativo conectado como o ChatGPT. Um assistente não a usa.";
 
 export const IDS_DO_ADMINISTRADOR: ReadonlySet<string> = new Set(
-  [...TOOLS_AGENTES, ...TOOLS_RELATORIOS, ...TOOLS_CADASTROS].map((t) => t.name),
+  [...TOOLS_AGENTES, ...TOOLS_RELATORIOS, ...TOOLS_CADASTROS, ...TOOLS_SEQUENCIAS].map((t) => t.name),
 );

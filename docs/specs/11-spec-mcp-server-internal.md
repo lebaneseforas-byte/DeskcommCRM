@@ -330,6 +330,25 @@ O servidor manda a cada cliente as dicas do protocolo (`annotations`) a partir d
 catálogo: `readOnlyHint` para leitura, `destructiveHint` para `critico` (`dicasDaFerramenta`,
 `lib/mcp/server.ts`). O limite do texto de instruções é o da tela (20.000 caracteres).
 
+### 3.5 Gerir a empresa por aplicativo conectado (relatórios, cadastros, follow-ups)
+
+Mesma régua da §3.4 — `apenasHumano`, fora dos pacotes do assistente
+(`IDS_DO_ADMINISTRADOR`) —, mas com papel `manager`, o das telas equivalentes. Nenhuma apaga;
+apagar, fotos e mídia de resposta pronta ficam na tela. Cada escrita audita com
+`actorApiTokenId`, e a regra mora em `lib/`, usada também pela rota da tela.
+
+| Tool | Escopo | O que faz | Regra em |
+|---|---|---|---|
+| `crm_get_daily_operation` | `mcp:read` | o dia da operação, ao vivo | `lib/operacao/` |
+| `crm_list_daily_reports` / `crm_get_daily_report` | `mcp:read` | relatórios diários salvos | `lib/operacao/` |
+| `crm_create_knowledge_source` / `crm_update_knowledge_source` | `mcp:write` | material da base (perguntas e respostas ou texto) | `lib/ai/knowledge/escrita-do-material.ts` |
+| `crm_create_product` / `crm_update_product` | `mcp:write` | produto do catálogo, sem fotos | `lib/catalogo/escrita-do-produto.ts` |
+| `crm_list_followup_flows` / `crm_get_followup_flow` | `mcp:read` | sequências e o desenho delas | `lib/followup/editar.ts` |
+| `crm_create_followup_flow` / `crm_save_followup_flow_draft` | `mcp:write` | sequência nova e rascunho (validado pelo `patchFollowupFlowSchema`) | `lib/followup/escrita-do-fluxo.ts` |
+| `crm_publish_followup_flow` | `mcp:write` | `critico`; mesma conferência do botão Publicar | `lib/followup/escrita-do-fluxo.ts` |
+| `crm_disable_followup_flow` | `mcp:write` | desliga para clientes novos | `lib/followup/escrita-do-fluxo.ts` |
+| `crm_create_message_template` / `crm_update_message_template` | `mcp:write` | resposta pronta COMPARTILHADA (a pessoal não é alcançada) | `lib/templates/escrita-da-resposta.ts` |
+
 ## 4. Tool selection (per agent)
 
 A versão do agente armazena `tool_ids text[]` (Spec 10 §3.2). Validação no publish:

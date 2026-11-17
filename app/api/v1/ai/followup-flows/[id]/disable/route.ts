@@ -7,10 +7,10 @@ import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
 import { ok, fail } from "@/lib/api/wrappers";
-import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { desligarFluxo } from "@/lib/followup/escrita-do-fluxo";
 
 export const dynamic = "force-dynamic";
 
@@ -33,41 +33,12 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
   const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { user, org: activeOrg } = authz;
 
-  const supabase = await createClient();
-  const { data: existing, error: fetchErr } = await supabase
-    .from("followup_flow_pointers")
-    .select("id, status")
-    .eq("id", id)
-    .eq("organization_id", activeOrg.orgId)
-    .maybeSingle();
-  if (fetchErr) return fail("internal_error", fetchErr.message, 500, { requestId });
-  if (!existing) return fail("not_found", t("Fluxo não encontrado."), 404, { requestId });
-
-  if (existing.status === "disabled") {
-    return ok({ id, status: "disabled" }, { requestId });
-  }
-
-  const { data: updated, error: updErr } = await supabase
-    .from("followup_flow_pointers")
-    .update({ status: "disabled", updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("organization_id", activeOrg.orgId)
-    .select("id, status, updated_at")
-    .single();
-  if (updErr || !updated) {
-    return fail("internal_error", updErr?.message ?? "followup_flow_disable_failed", 500, {
-      requestId,
-    });
-  }
-
-  void audit({
-    action: "followup_flow.disabled",
-    actorUserId: user.id,
-    organizationId: activeOrg.orgId,
-    resourceType: "followup_flow_pointer",
-    resourceId: id,
-    requestId,
+  const r = await desligarFluxo(await createClient(), {
+    orgId: activeOrg.orgId,
+    id,
+    ator: { userId: user.id, apiTokenId: null, requestId },
   });
-
-  return ok(updated, { requestId });
+  if (!r.ok)
+    return fail(r.codigo, r.traduzivel ? t(r.mensagem) : r.mensagem, r.status, { requestId });
+  return ok(r.data, { requestId });
 }

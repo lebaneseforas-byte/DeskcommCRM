@@ -109,6 +109,16 @@ import {
 } from "./agentes";
 import { crmGetDailyOperation, crmGetDailyReport, crmListDailyReports } from "./relatorios";
 import { crmCreateKnowledgeSource, crmCreateProduct, crmUpdateKnowledgeSource, crmUpdateProduct } from "./cadastros";
+import {
+  crmCreateFollowupFlow,
+  crmCreateMessageTemplate,
+  crmDisableFollowupFlow,
+  crmGetFollowupFlow,
+  crmListFollowupFlows,
+  crmPublishFollowupFlow,
+  crmSaveFollowupFlowDraft,
+  crmUpdateMessageTemplate,
+} from "./sequencias";
 import { crmSaveLeadDiagnosis } from "./diagnostico";
 
 // Cast via `unknown` porque McpToolDefinition<TInput> nao e covariante
@@ -172,6 +182,9 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   crmGetDailyOperation,
   crmListDailyReports,
   crmGetDailyReport,
+  // read — sequências de follow-up (só gestão; ver `./sequencias.ts`)
+  crmListFollowupFlows,
+  crmGetFollowupFlow,
   // write
   // A que consulta E marca numa chamada só vem primeiro: quando o cliente já deu
   // dia e hora, é o caminho curto, e é o que evita o turno morrer no meio (#831).
@@ -228,6 +241,13 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   crmUpdateKnowledgeSource,
   crmCreateProduct,
   crmUpdateProduct,
+  // write — follow-ups e respostas prontas (só gestão; ver `./sequencias.ts`)
+  crmCreateFollowupFlow,
+  crmSaveFollowupFlowDraft,
+  crmPublishFollowupFlow,
+  crmDisableFollowupFlow,
+  crmCreateMessageTemplate,
+  crmUpdateMessageTemplate,
   // handoff (special)
   crmRequestHumanHandoff,
 ] as unknown as ReadonlyArray<McpToolDefinition>;

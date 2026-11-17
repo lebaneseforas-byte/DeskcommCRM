@@ -84,6 +84,15 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
   "crm_update_knowledge_source": { tokens: 307, motivo: EDITAR_ASSISTENTES },
   "crm_create_product": { tokens: 295, motivo: EDITAR_ASSISTENTES },
   "crm_update_product": { tokens: 366, motivo: EDITAR_ASSISTENTES },
+  // Follow-ups e respostas prontas (só gestão, por aplicativo conectado); nunca montadas no turno.
+  "crm_list_followup_flows": { tokens: 112, motivo: EDITAR_ASSISTENTES },
+  "crm_get_followup_flow": { tokens: 218, motivo: EDITAR_ASSISTENTES },
+  "crm_create_followup_flow": { tokens: 97, motivo: EDITAR_ASSISTENTES },
+  "crm_save_followup_flow_draft": { tokens: 340, motivo: EDITAR_ASSISTENTES },
+  "crm_publish_followup_flow": { tokens: 196, motivo: EDITAR_ASSISTENTES },
+  "crm_disable_followup_flow": { tokens: 164, motivo: EDITAR_ASSISTENTES },
+  "crm_create_message_template": { tokens: 160, motivo: EDITAR_ASSISTENTES },
+  "crm_update_message_template": { tokens: 274, motivo: EDITAR_ASSISTENTES },
   "crm_list_contact_orders": { tokens: 234, motivo: BASE },
   "crm_search_products": { tokens: 362, motivo: BASE },
   "crm_get_honorarios_contrato": { tokens: 253, motivo: BASE },
@@ -216,7 +225,7 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
 // ChatGPT; nenhuma vai para o turno do agente). MEDIDO: 41653 = 39537 + 2116.
 // +478 com `configuracoes` no rascunho do assistente. MEDIDO: 42131 = 41653 + 478.
 // +374 com as 3 de relatório do dia (só gestão). MEDIDO: 42505 = 42131 + 374.
-const TETO_TOTAL = 43872;
+const TETO_TOTAL = 45433;
 
 const VARIANTE = "schedule_followup (com negócio)";
 

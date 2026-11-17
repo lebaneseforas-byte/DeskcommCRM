@@ -26,7 +26,12 @@ import { audit } from "@/lib/audit";
 import { temChaveDeEmbedding } from "@/lib/ai/embeddings/chave";
 import { BUCKET_DE_CONHECIMENTO } from "@/lib/ai/rag/ingest/documento";
 import { parseFaqMarkdown } from "@/lib/ai/rag/ingest/faq";
-import { aceitaTextoColado, canonizarTipoDeFonte, ePerguntaEResposta, rotuloDoTipo } from "@/lib/ai/rag/tipos-de-fonte";
+import {
+  aceitaTextoColado,
+  canonizarTipoDeFonte,
+  ePerguntaEResposta,
+  rotuloDoTipo,
+} from "@/lib/ai/rag/tipos-de-fonte";
 
 export const faqItemSchema = z.object({
   question: z.string().min(1),
@@ -75,23 +80,30 @@ function falha(
   status: number,
   extra?: { details?: unknown; requestId?: string },
 ): FalhaDoMaterial {
-  return { ok: false, codigo, mensagem, status, ...(extra?.details !== undefined ? { details: extra.details } : {}) };
+  return {
+    ok: false,
+    codigo,
+    mensagem,
+    status,
+    ...(extra?.details !== undefined ? { details: extra.details } : {}),
+  };
 }
 
 /** As frases já são português; a tradução é de quem chama. */
 const t = (texto: string) => texto;
 
-export async function criarMaterial(
-  args: {
-    /** Leituras de conferência: o client da sessão (RLS) na tela; o de serviço no MCP. */
-    dbLeitura: SupabaseClient;
-    /** Escritas: o client de serviço, com `organization_id` à mão. */
-    dbEscrita: SupabaseClient;
-    orgId: string;
-    input: z.output<typeof createSourceSchema>;
-    ator: AtorDoMaterial;
-  },
-): Promise<{ ok: true; data: { id: string; items_count: number; indexacao_habilitada: boolean } } | FalhaDoMaterial> {
+export async function criarMaterial(args: {
+  /** Leituras de conferência: o client da sessão (RLS) na tela; o de serviço no MCP. */
+  dbLeitura: SupabaseClient;
+  /** Escritas: o client de serviço, com `organization_id` à mão. */
+  dbEscrita: SupabaseClient;
+  orgId: string;
+  input: z.output<typeof createSourceSchema>;
+  ator: AtorDoMaterial;
+}): Promise<
+  | { ok: true; data: { id: string; items_count: number; indexacao_habilitada: boolean } }
+  | FalhaDoMaterial
+> {
   const requestId = args.ator.requestId;
   const input = args.input;
   const tipo = canonizarTipoDeFonte(input.source_type);
@@ -136,7 +148,9 @@ export async function criarMaterial(
       return falha("internal_error", "Erro ao validar agent_id.", 500, { requestId });
     }
     if (!agent) {
-      return falha("not_found", t("Assistente não encontrado nesta organização."), 404, { requestId });
+      return falha("not_found", t("Assistente não encontrado nesta organização."), 404, {
+        requestId,
+      });
     }
   }
 
@@ -155,7 +169,9 @@ export async function criarMaterial(
       if (faqItems.length === 0) {
         return falha(
           "invalid_request",
-          t("Não achei nenhum par pergunta/resposta no texto. Use uma linha ## Pergunta: e uma ## Resposta: por item."),
+          t(
+            "Não achei nenhum par pergunta/resposta no texto. Use uma linha ## Pergunta: e uma ## Resposta: por item.",
+          ),
           400,
           { requestId },
         );
@@ -196,7 +212,9 @@ export async function criarMaterial(
       });
     if (upErr) {
       console.error("[ai-knowledge-sources] guardar o texto falhou:", upErr.message);
-      return falha("internal_error", t("Erro ao guardar o conteúdo do material."), 500, { requestId });
+      return falha("internal_error", t("Erro ao guardar o conteúdo do material."), 500, {
+        requestId,
+      });
     }
     metadata = { ...metadata, blob_path: blobPath, ext: "md", origem: "texto_colado" };
   }
@@ -251,24 +269,33 @@ export async function criarMaterial(
     if (itemsErr) {
       // Fonte sem item nenhum é fonte vazia: melhor desfazer do que deixar uma
       // linha que promete conteúdo e nunca vai indexar nada.
-      await admin.from("ai_knowledge_sources").delete().eq("organization_id", args.orgId).eq("id", ksId);
+      await admin
+        .from("ai_knowledge_sources")
+        .delete()
+        .eq("organization_id", args.orgId)
+        .eq("id", ksId);
       console.error("[ai-knowledge-sources] insert dos itens falhou:", itemsErr.message);
-      return falha("internal_error", t("Erro ao gravar o conteúdo do material."), 500, { requestId });
+      return falha("internal_error", t("Erro ao gravar o conteúdo do material."), 500, {
+        requestId,
+      });
     }
     itemsCount = rows.length;
   }
 
-  const { error: emitErr } = await admin.rpc("emit_event" as never, {
-    p_event_type: "knowledge_source.updated",
-    p_entity_kind: "ai_knowledge_source",
-    p_entity_id: ksId,
-    p_payload: {
-      knowledge_source_id: ksId,
-      agent_id: input.agent_id ?? null,
-      source_type: tipo,
-    },
-    p_organization_id: args.orgId,
-  } as never);
+  const { error: emitErr } = await admin.rpc(
+    "emit_event" as never,
+    {
+      p_event_type: "knowledge_source.updated",
+      p_entity_kind: "ai_knowledge_source",
+      p_entity_id: ksId,
+      p_payload: {
+        knowledge_source_id: ksId,
+        agent_id: input.agent_id ?? null,
+        source_type: tipo,
+      },
+      p_organization_id: args.orgId,
+    } as never,
+  );
 
   if (emitErr) {
     console.warn("[ai-knowledge-sources] emit_event falhou (não bloqueia):", emitErr.message);
@@ -295,16 +322,14 @@ export async function criarMaterial(
   return { ok: true, data: { id: ksId, items_count: itemsCount, indexacao_habilitada: temChave } };
 }
 
-export async function atualizarMaterial(
-  args: {
-    dbLeitura: SupabaseClient;
-    dbEscrita: SupabaseClient;
-    orgId: string;
-    sourceId: string;
-    input: z.output<typeof patchSourceSchema>;
-    ator: AtorDoMaterial;
-  },
-): Promise<{ ok: true; data: { id: string; items_count?: number } } | FalhaDoMaterial> {
+export async function atualizarMaterial(args: {
+  dbLeitura: SupabaseClient;
+  dbEscrita: SupabaseClient;
+  orgId: string;
+  sourceId: string;
+  input: z.output<typeof patchSourceSchema>;
+  ator: AtorDoMaterial;
+}): Promise<{ ok: true; data: { id: string; items_count?: number } } | FalhaDoMaterial> {
   const requestId = args.ator.requestId;
   const sourceId = args.sourceId;
   const input = args.input;
@@ -405,17 +430,20 @@ export async function atualizarMaterial(
   }
 
   // Emit knowledge_source.updated (fire-and-forget).
-  const { error: emitErr } = await admin.rpc("emit_event" as never, {
-    p_event_type: "knowledge_source.updated",
-    p_entity_kind: "ai_knowledge_source",
-    p_entity_id: sourceId,
-    p_payload: {
-      knowledge_source_id: sourceId,
-      agent_id: ksRow.agent_id,
-      source_type: ksRow.source_type,
-    },
-    p_organization_id: args.orgId,
-  } as never);
+  const { error: emitErr } = await admin.rpc(
+    "emit_event" as never,
+    {
+      p_event_type: "knowledge_source.updated",
+      p_entity_kind: "ai_knowledge_source",
+      p_entity_id: sourceId,
+      p_payload: {
+        knowledge_source_id: sourceId,
+        agent_id: ksRow.agent_id,
+        source_type: ksRow.source_type,
+      },
+      p_organization_id: args.orgId,
+    } as never,
+  );
 
   if (emitErr) {
     console.warn("[ai-knowledge-sources] emit_event failed (non-blocking):", emitErr.message);
@@ -439,5 +467,8 @@ export async function atualizarMaterial(
     },
   });
 
-  return { ok: true, data: { id: sourceId, ...(itemsCount !== undefined ? { items_count: itemsCount } : {}) } };
+  return {
+    ok: true,
+    data: { id: sourceId, ...(itemsCount !== undefined ? { items_count: itemsCount } : {}) },
+  };
 }

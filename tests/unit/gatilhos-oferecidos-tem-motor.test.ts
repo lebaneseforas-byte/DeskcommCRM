@@ -16,7 +16,8 @@
  *
  * ## O que ele guarda, nos DOIS sentidos
  *
- * `KINDS_COM_MOTOR`, na rota de publish, é a lista de gatilhos que têm produtor
+ * `KINDS_COM_MOTOR`, na regra de publicação (`lib/followup/escrita-do-fluxo.ts`, a
+ * mesma da rota de publish e do MCP), é a lista de gatilhos que têm produtor
  * de enrollment. O seletor da `PublishBar` tem de oferecer exatamente ela:
  *
  *  - oferecer a MAIS é controle decorativo — a pessoa escolhe, salva, e o
@@ -38,7 +39,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const RAIZ = process.cwd();
-const PUBLISH = path.join(RAIZ, "app/api/v1/ai/followup-flows/[id]/publish/route.ts");
+const PUBLISH = path.join(RAIZ, "lib/followup/escrita-do-fluxo.ts");
 const SELETOR = path.join(RAIZ, "app/app/ai/followups/[id]/_components/TriggerConfigControl.tsx");
 
 function kindsComMotor(): string[] {

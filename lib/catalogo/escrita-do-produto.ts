@@ -16,7 +16,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { audit } from "@/lib/audit";
 import { moedaDaOrganizacao } from "@/lib/catalogo/moeda-da-org";
 import { capacidadesDaOrganizacao } from "@/lib/organizacao/capacidades";
-import { COLUNAS_DO_PRODUTO, type Produto, type ProdutoCreate, type ProdutoPatch } from "@/lib/schemas/produtos";
+import {
+  COLUNAS_DO_PRODUTO,
+  type Produto,
+  type ProdutoCreate,
+  type ProdutoPatch,
+} from "@/lib/schemas/produtos";
 
 export interface AtorDoProduto {
   userId: string | null;

@@ -197,6 +197,13 @@ export const ALVO_DE_FUNIL: Record<string, AlvoDeFunil> = {
   crm_update_knowledge_source: "sem_funil",
   crm_create_product: "sem_funil",
   crm_update_product: "sem_funil",
+  // Follow-ups e respostas prontas (só gestão): desenho da empresa, não de um lead.
+  crm_create_followup_flow: "sem_funil",
+  crm_save_followup_flow_draft: "sem_funil",
+  crm_publish_followup_flow: "sem_funil",
+  crm_disable_followup_flow: "sem_funil",
+  crm_create_message_template: "sem_funil",
+  crm_update_message_template: "sem_funil",
 };
 
 /**

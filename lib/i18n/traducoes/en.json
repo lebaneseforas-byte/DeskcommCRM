@@ -9887,5 +9887,21 @@
   "Cadastrar um produto": "Add a product",
   "Cria um produto no catálogo, com código, nome, preço e estoque. As fotos são colocadas pela tela de produtos.": "Creates a product in the catalog, with code, name, price and stock. Photos are added on the products screen.",
   "Alterar um produto": "Change a product",
-  "Muda preço, nome, descrição, estoque ou se o produto está à venda. Só muda o que for pedido.": "Changes price, name, description, stock or whether the product is for sale. Only what is asked changes."
+  "Muda preço, nome, descrição, estoque ou se o produto está à venda. Só muda o que for pedido.": "Changes price, name, description, stock or whether the product is for sale. Only what is asked changes.",
+  "Ver as sequências de follow-up": "See the follow-up sequences",
+  "Lista as sequências automáticas de retomada da empresa, com a situação de cada uma: rascunho, ligada ou desligada.": "Lists the company's automatic follow-up sequences, with the status of each: draft, on or off.",
+  "Abrir uma sequência de follow-up": "Open a follow-up sequence",
+  "Mostra o que dispara a sequência e cada passo dela, como o editor desenha.": "Shows what starts the sequence and each of its steps, as the editor draws them.",
+  "Criar uma sequência de follow-up": "Create a follow-up sequence",
+  "Cria uma sequência vazia, em rascunho. Nada é enviado até ela ser montada e publicada.": "Creates an empty sequence as a draft. Nothing is sent until it is built and published.",
+  "Salvar o rascunho de uma sequência": "Save a sequence draft",
+  "Muda o nome, os passos, o que dispara a sequência e o que acontece quando uma pessoa assume a conversa. Fica em rascunho: os clientes não sentem nada até publicar.": "Changes the name, the steps, what starts the sequence and what happens when a person takes over the conversation. It stays a draft: customers notice nothing until it is published.",
+  "Publicar uma sequência de follow-up": "Publish a follow-up sequence",
+  "Coloca o rascunho no ar. A partir daí a sequência manda mensagens aos clientes sozinha, sempre que o gatilho acontecer.": "Puts the draft live. From then on the sequence messages customers on its own whenever its trigger happens.",
+  "Desligar uma sequência de follow-up": "Turn off a follow-up sequence",
+  "Para a sequência para clientes novos. Nada é apagado, e ela pode ser publicada de novo.": "Stops the sequence for new customers. Nothing is deleted, and it can be published again.",
+  "Criar uma resposta pronta da equipe": "Create a team quick reply",
+  "Cria uma resposta pronta compartilhada, com título, texto e atalho. Imagens e áudios são colocados pela tela.": "Creates a shared quick reply with a title, text and shortcut. Images and audio are added on the screen.",
+  "Alterar uma resposta pronta da equipe": "Change a team quick reply",
+  "Muda título, texto, atalho ou grupo de uma resposta pronta compartilhada. As respostas pessoais de cada atendente não mudam.": "Changes the title, text, shortcut or group of a shared quick reply. Each agent's personal replies do not change."
 }

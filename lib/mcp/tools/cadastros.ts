@@ -15,7 +15,11 @@
 import { z } from "zod";
 
 import { atualizarMaterial, criarMaterial } from "@/lib/ai/knowledge/escrita-do-material";
-import { atualizarProduto, capacidadeDoProdutoPermitida, inserirProduto } from "@/lib/catalogo/escrita-do-produto";
+import {
+  atualizarProduto,
+  capacidadeDoProdutoPermitida,
+  inserirProduto,
+} from "@/lib/catalogo/escrita-do-produto";
 import { produtoCreateSchema, produtoPatchSchema } from "@/lib/schemas/produtos";
 
 import type { McpContext, McpToolDefinition } from "../types";
@@ -37,10 +41,27 @@ const parDePerguntaShape = z
 
 const criarMaterialShape = {
   nome: z.string().trim().min(2).max(120).describe("Name of the material (must be unique)."),
-  tipo: z.enum(["faq", "documento"]).describe('"faq" = question/answer pairs; "documento" = a text document.'),
-  perguntas_e_respostas: z.array(parDePerguntaShape).min(1).max(200).optional().describe("For tipo=faq."),
-  texto: z.string().trim().min(1).max(200000).optional().describe("For tipo=documento: the full text (markdown allowed)."),
-  agent_id: z.string().uuid().optional().describe("Optional: tie the material to one assistant. Default: whole company."),
+  tipo: z
+    .enum(["faq", "documento"])
+    .describe('"faq" = question/answer pairs; "documento" = a text document.'),
+  perguntas_e_respostas: z
+    .array(parDePerguntaShape)
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("For tipo=faq."),
+  texto: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200000)
+    .optional()
+    .describe("For tipo=documento: the full text (markdown allowed)."),
+  agent_id: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Optional: tie the material to one assistant. Default: whole company."),
 };
 
 export const crmCreateKnowledgeSource: McpToolDefinition<typeof criarMaterialShape> = {
@@ -164,9 +185,16 @@ export const crmCreateProduct: McpToolDefinition<typeof criarProdutoShape> = {
   requiresScope: "mcp:write",
   handler: async (input, ctx) => {
     if (!(await capacidadeDoProdutoPermitida(ctx.supabase, ctx.organizationId, input.capacidade))) {
-      return { erro: "capacidade_desligada", mensagem: "The 'capacidade' field is turned off for this company." };
+      return {
+        erro: "capacidade_desligada",
+        mensagem: "The 'capacidade' field is turned off for this company.",
+      };
     }
-    const r = await inserirProduto(ctx.supabase, { orgId: ctx.organizationId, campos: input, ator: ator(ctx) });
+    const r = await inserirProduto(ctx.supabase, {
+      orgId: ctx.organizationId,
+      campos: input,
+      ator: ator(ctx),
+    });
     if (!r.ok) {
       return r.codigo === "conflict"
         ? { erro: "codigo_repetido", mensagem: "A product with this codigo already exists." }
@@ -192,14 +220,30 @@ export const crmUpdateProduct: McpToolDefinition<typeof atualizarProdutoShape> =
   requiresScope: "mcp:write",
   handler: async (input, ctx) => {
     const { product_id, ...campos } = input;
-    if (Object.keys(campos).length === 0) return { erro: "pedido_vazio", mensagem: "Nothing to change." };
-    if (!(await capacidadeDoProdutoPermitida(ctx.supabase, ctx.organizationId, campos.capacidade))) {
-      return { erro: "capacidade_desligada", mensagem: "The 'capacidade' field is turned off for this company." };
+    if (Object.keys(campos).length === 0)
+      return { erro: "pedido_vazio", mensagem: "Nothing to change." };
+    if (
+      !(await capacidadeDoProdutoPermitida(ctx.supabase, ctx.organizationId, campos.capacidade))
+    ) {
+      return {
+        erro: "capacidade_desligada",
+        mensagem: "The 'capacidade' field is turned off for this company.",
+      };
     }
-    const r = await atualizarProduto(ctx.supabase, { orgId: ctx.organizationId, id: product_id, campos, ator: ator(ctx) });
+    const r = await atualizarProduto(ctx.supabase, {
+      orgId: ctx.organizationId,
+      id: product_id,
+      campos,
+      ator: ator(ctx),
+    });
     if (!r.ok) {
-      if (r.codigo === "not_found") return { erro: "produto_nao_encontrado", mensagem: "No product with this id in this company." };
-      if (r.codigo === "conflict") return { erro: "codigo_repetido", mensagem: "Another product already uses this codigo." };
+      if (r.codigo === "not_found")
+        return {
+          erro: "produto_nao_encontrado",
+          mensagem: "No product with this id in this company.",
+        };
+      if (r.codigo === "conflict")
+        return { erro: "codigo_repetido", mensagem: "Another product already uses this codigo." };
       return { erro: "falha_ao_salvar", mensagem: "The product could not be saved." };
     }
     return { produto: r.produto };

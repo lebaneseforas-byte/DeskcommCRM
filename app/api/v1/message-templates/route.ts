@@ -10,7 +10,6 @@ import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
-import { audit } from "@/lib/audit";
 import { chaveDaRequisicao, comIdempotencia } from "@/lib/api/idempotency";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
@@ -19,7 +18,7 @@ import { createTemplateSchema } from "@/lib/schemas/templates";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { grupoDaOrganizacao } from "@/lib/templates/grupo-da-resposta";
-import { posicaoEntre } from "@/lib/templates/ordem";
+import { criarRespostaRapida } from "@/lib/templates/escrita-da-resposta";
 
 export const dynamic = "force-dynamic";
 const COLS =
@@ -107,59 +106,21 @@ export async function POST(req: NextRequest): Promise<Response> {
    * — o cliente retentaria e receberia o replay de uma criação inexistente.
    */
   async function criar() {
-    // A resposta nova nasce no TOPO e sem empate: um passo acima da primeira da
-    // lista visível. Com todas nascendo na mesma posição, o desempate passava a
-    // ser `updated_at` — e editar uma resposta nova voltava a reordenar a lista
-    // (o defeito da #3244 pela porta da criação).
-    const { data: primeira, error: erroPrimeira } = await supabase
-      .from("message_templates")
-      .select("ordem")
-      .eq("organization_id", org.orgId)
-      .order("ordem", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (erroPrimeira) throw new Error("Erro ao criar template.");
-    const menor = (primeira as { ordem: number } | null)?.ordem ?? null;
-    // `posicaoEntre(null, x)` nunca é `null`: só o empate entre DUAS vizinhas é.
-    const ordem = posicaoEntre(null, menor)!;
-
-    const { data, error } = await supabase
-      .from("message_templates")
-      .insert({
-        organization_id: org.orgId,
-        owner_user_id: shared ? null : user.id,
-        title,
-        body,
-        shortcut: shortcut ?? null,
-        // O grupo (#3245): ausente na tela = `null` = lista plana, que é o
-        // estado de toda resposta anterior à 0808.
-        grupo_id: grupo_id ?? null,
-        // "Mostrar na barra do Inbox" (#3282): só vai quando a tela escolheu.
-        // Ausente, a coluna assume o default dela (`true`) — a resposta nasce
-        // aparecendo na barra, que é o comportamento de sempre.
-        ...(mostrar_na_barra === undefined ? {} : { mostrar_na_barra }),
-        // `midias` nasce vazia: a mídia nova (a imagem da #2526 ou o áudio do
-        // recurso, #2833) é gravada pela rota de upload, que gera o caminho
-        // sabendo o id do template. Aceitar caminho aqui seria aceitar um
-        // arquivo que ninguém conferiu.
-        midias: [],
-        created_by_user_id: user.id,
-        ordem,
-      })
-      .select(COLS)
-      .single();
-    if (error || !data) throw new Error("Erro ao criar template.");
-
-    void audit({
-      action: "template.created",
-      actorUserId: user.id,
-      organizationId: org.orgId,
-      resourceType: "message_template",
-      resourceId: data.id,
+    // A resposta nova nasce no TOPO e sem empate, com `midias` vazia (a mídia
+    // nova é gravada pela rota de upload, que gera o caminho sabendo o id) —
+    // regras em `lib/templates/escrita-da-resposta.ts`, as mesmas do MCP.
+    return criarRespostaRapida(supabase, {
+      orgId: org.orgId,
+      donoUserId: shared ? null : user.id,
+      criadorUserId: user.id,
+      apiTokenId: null,
       requestId,
-      metadata: { shared, title },
+      title,
+      body,
+      ...(shortcut !== undefined ? { shortcut } : {}),
+      ...(mostrar_na_barra !== undefined ? { mostrar_na_barra } : {}),
+      ...(grupo_id !== undefined ? { grupo_id } : {}),
     });
-    return data;
   }
 
   // Sem a chave, o caminho é o de sempre: uma chave só existe quando quem

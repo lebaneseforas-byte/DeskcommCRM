@@ -15,9 +15,8 @@ import { NextRequest } from "next/server";
 
 import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { ok, fail } from "@/lib/api/wrappers";
-import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { moduloLigado } from "@/lib/instalacao/modulos";
+import { criarFluxo } from "@/lib/followup/escrita-do-fluxo";
 import { createFollowupFlowSchema } from "@/lib/followup/api-schemas";
 import { traduzir } from "@/lib/i18n/dicionario";
 
@@ -91,42 +90,16 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Roteiro de atendimento é módulo opcional da instalação (doc 64): desligado,
   // a porta não existe — 404, a mesma resposta do banco externo desligado.
-  if (
-    parsed.data.surface === "atendimento" &&
-    !(await moduloLigado(createAdminClient(), "fluxos_atendimento"))
-  ) {
-    return fail("not_found", t("Fluxo não encontrado."), 404, { requestId });
-  }
-
-  const { data: created, error: insErr } = await supabase
-    .from("followup_flow_pointers")
-    .insert({
-      organization_id: organizationId,
-      name: parsed.data.name,
-      ...(parsed.data.surface !== undefined ? { surface: parsed.data.surface } : {}),
-    })
-    .select("*")
-    .single();
-
-  if (insErr || !created) {
-    if (insErr?.code === "23505") {
-      return fail("conflict", t("Já existe um fluxo com este nome."), 409, { requestId });
-    }
-    return fail("internal_error", insErr?.message ?? "followup_flow_insert_failed", 500, {
-      requestId,
-    });
-  }
-
-  void audit({
-    action: "followup_flow.created",
-    actorUserId: actor.type === "user" ? actor.id : null,
-    actorApiTokenId: apiTokenId ?? null,
-    organizationId,
-    resourceType: "followup_flow_pointer",
-    resourceId: created.id,
-    requestId,
-    metadata: { name: parsed.data.name },
+  // A gravação (módulo de roteiros ligado, nome único, auditoria com o autor
+  // que houver — pessoa ou token) mora em `lib/followup/escrita-do-fluxo.ts`,
+  // a mesma que o MCP do CRM usa.
+  const r = await criarFluxo(supabase, {
+    orgId: organizationId,
+    nome: parsed.data.name,
+    ...(parsed.data.surface !== undefined ? { surface: parsed.data.surface } : {}),
+    moduloDb: createAdminClient(),
+    ator: { userId: actor.type === "user" ? actor.id : null, apiTokenId: apiTokenId ?? null, requestId },
   });
-
-  return ok(created, { requestId, status: 201 });
+  if (!r.ok) return fail(r.codigo, r.traduzivel ? t(r.mensagem) : r.mensagem, r.status, { requestId });
+  return ok(r.fluxo, { requestId, status: 201 });
 }
