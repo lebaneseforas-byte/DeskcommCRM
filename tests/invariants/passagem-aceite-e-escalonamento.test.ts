@@ -179,6 +179,21 @@ describe("9401 — a passagem nasce com estado e responsável", () => {
     expect(campo("urgente")).toBe("true");
   });
 
+  it("9403: urgente também pelas etiquetas em inglês (' Complaint ', 'urgent')", () => {
+    sql(`update public.conversations set tags = array[' Complaint '] where id = '${CONV1}';`);
+    inserirPassagem();
+    expect(campo("urgente")).toBe("true");
+    sql(`update public.conversations set tags = array['urgent'] where id = '${CONV2}';`);
+    inserirPassagem(CONV2, C2);
+    expect(campo("urgente", CONV2)).toBe("true");
+  });
+
+  it("controle: etiqueta sem urgência não liga (' project ')", () => {
+    sql(`update public.conversations set tags = array[' project '] where id = '${CONV1}';`);
+    inserirPassagem();
+    expect(campo("urgente")).toBe("false");
+  });
+
   it("a etiqueta que chega DEPOIS ainda dá responsável e urgência", () => {
     sql(`update public.organizations
             set settings = '{"escalonamento_de_passagem":{"rota_por_etiqueta":{"projeto":"${DONO}"}}}'::jsonb

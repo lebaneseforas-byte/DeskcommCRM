@@ -22,7 +22,7 @@
  *
  * ─── A linha do tempo (defaults) ────────────────────────────────────────────
  *
- *   URGENTE (etiqueta `urgente`/`reclamação`), a cada 15 min:
+ *   URGENTE (etiqueta `urgente`/`reclamação`, ou `urgent`/`complaint` — 9403), a cada 15 min:
  *     0 min  passagem nasce, nada;
  *    15 min  lembrete 1 ao responsável;
  *    30 min  lembrete 2;
@@ -60,7 +60,7 @@ export function passagemEmAberto(estado: string | null | undefined): boolean {
  * `conversationTagSchema` (trim + minúsculas). A MESMA lista mora em
  * `fn_passagem_eh_urgente` (migration 9401) — é o banco que decide, na criação.
  */
-export const ETIQUETAS_URGENTES = ["urgente", "reclamação", "reclamacao"] as const;
+export const ETIQUETAS_URGENTES = ["urgente", "reclamação", "reclamacao", "urgent", "complaint"] as const;
 
 /** Teto absoluto, acima de qualquer configuração: nenhuma passagem vira laço. */
 export const TETO_ABSOLUTO_DE_LEMBRETES = 10;

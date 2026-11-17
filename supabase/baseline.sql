@@ -86419,3 +86419,30 @@ update public.passagens_de_atendimento p
   from vivas v
  where p.id = v.id
    and v.ordem > 1;
+
+-- ---- urgência da passagem também em inglês: urgent e complaint (migration 9403) ----
+create or replace function public.fn_passagem_eh_urgente(
+  p_organization_id uuid,
+  p_conversation_id uuid,
+  p_contact_id uuid
+) returns boolean
+language sql
+stable
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+      from public.conversations c, unnest(coalesce(c.tags, '{}'::text[])) as t(valor)
+     where c.organization_id = p_organization_id
+       and c.id = p_conversation_id
+       and lower(btrim(t.valor)) in ('urgente', 'reclamação', 'reclamacao', 'urgent', 'complaint')
+  ) or exists (
+    select 1
+      from public.crm_leads l, unnest(coalesce(l.tags, '{}'::text[])) as t(valor)
+     where l.organization_id = p_organization_id
+       and l.contact_id = p_contact_id
+       and l.status = 'open'
+       and lower(btrim(t.valor)) in ('urgente', 'reclamação', 'reclamacao', 'urgent', 'complaint')
+  );
+$$;
+revoke all on function public.fn_passagem_eh_urgente(uuid, uuid, uuid) from public, anon, authenticated;
