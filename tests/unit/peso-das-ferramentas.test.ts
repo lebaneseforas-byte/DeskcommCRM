@@ -39,7 +39,7 @@ const BASE = "linha de base, medida quando a cerca nasceu (2026-10-31)";
 /** Módulo opcional `amigo` (#4227): só entram no catálogo com o módulo instalado. */
 const AMIGO = "módulo amigo, fora do catálogo de quem não instalou";
 /** Editar os assistentes de IA pelo ChatGPT: só admin, nunca montadas no turno do agente. */
-const EDITAR_ASSISTENTES = "editar assistentes (só admin, por aplicativo conectado); nunca montada no turno do agente";
+const EDITAR_ASSISTENTES = "só de quem administra/gerencia, por aplicativo conectado; nunca montada no turno do agente";
 
 const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
   "crm_list_event_types": { tokens: 204, motivo: BASE },
@@ -75,6 +75,10 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
   "crm_test_ai_agent_version": { tokens: 406, motivo: EDITAR_ASSISTENTES },
   "crm_publish_ai_agent_version": { tokens: 264, motivo: EDITAR_ASSISTENTES },
   "crm_rollback_ai_agent": { tokens: 235, motivo: EDITAR_ASSISTENTES },
+  // Relatórios do dia (só gestão, por aplicativo conectado); nunca montadas no turno.
+  "crm_get_daily_operation": { tokens: 153, motivo: EDITAR_ASSISTENTES },
+  "crm_list_daily_reports": { tokens: 105, motivo: EDITAR_ASSISTENTES },
+  "crm_get_daily_report": { tokens: 116, motivo: EDITAR_ASSISTENTES },
   "crm_list_contact_orders": { tokens: 234, motivo: BASE },
   "crm_search_products": { tokens: 362, motivo: BASE },
   "crm_get_honorarios_contrato": { tokens: 253, motivo: BASE },
@@ -206,7 +210,8 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
 // +2116 com as 7 ferramentas de editar os assistentes de IA (só admin, pelo
 // ChatGPT; nenhuma vai para o turno do agente). MEDIDO: 41653 = 39537 + 2116.
 // +478 com `configuracoes` no rascunho do assistente. MEDIDO: 42131 = 41653 + 478.
-const TETO_TOTAL = 42131;
+// +374 com as 3 de relatório do dia (só gestão). MEDIDO: 42505 = 42131 + 374.
+const TETO_TOTAL = 42505;
 
 const VARIANTE = "schedule_followup (com negócio)";
 

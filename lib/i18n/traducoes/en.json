@@ -9866,11 +9866,18 @@
   "Rascunho do assistente de IA": "AI assistant draft",
   "Teste do assistente de IA": "AI assistant test",
   "Atendimento dos clientes": "Customer service",
-  "Esta capacidade é de quem administra a empresa, por um aplicativo conectado como o ChatGPT. Um assistente não lê nem altera as próprias instruções.": "This capability belongs to whoever administers the company, through a connected app such as ChatGPT. An assistant does not read or change its own instructions.",
+  "Esta capacidade é de quem administra ou gerencia a empresa, por um aplicativo conectado como o ChatGPT. Um assistente não a usa.": "This capability is for whoever manages the company, through a connected app such as ChatGPT. An assistant does not use it.",
   "1 conta de teste autorizada": "1 authorized test account",
   "contas de teste autorizadas": "authorized test accounts",
   "Somente as contas marcadas abaixo podem receber respostas automáticas enquanto o canal está em teste. Sem nenhuma marcada, a IA fica pausada.": "Only the accounts checked below can receive automatic replies while the channel is in test mode. With none checked, the AI stays paused.",
   "Contas autorizadas para teste": "Accounts authorized for testing",
   "Nenhum contato desta rede conversou com o canal ainda. Peça para a conta de teste mandar uma mensagem e reabra este painel.": "No contact from this network has messaged the channel yet. Ask the test account to send a message, then reopen this panel.",
-  "Salvar contas de teste": "Save test accounts"
+  "Salvar contas de teste": "Save test accounts",
+  "Ver como está o dia da operação": "See how the operation's day is going",
+  "Mostra o dia ao vivo: conversas novas e com mensagem do cliente por canal, quem espera uma pessoa, projetos, reclamações, pedidos de produto, negócios ganhos e perdidos e as falhas do dia.": "Shows the day live: new conversations and conversations with customer messages per channel, who is waiting for a person, projects, complaints, product requests, deals won and lost, and the day's failures.",
+  "Relatório do dia": "Daily report",
+  "Ver os relatórios diários salvos": "See the saved daily reports",
+  "Lista os relatórios do dia que o sistema guarda sozinho, com os números principais de cada dia, para comparar dias e semanas.": "Lists the daily reports the system saves on its own, with each day's main numbers, to compare days and weeks.",
+  "Ler o relatório de um dia": "Read one day's report",
+  "Mostra o relatório salvo de um dia, com o mesmo texto da tela de relatórios e os nomes atualizados.": "Shows the saved report of one day, with the same text as the reports screen and up-to-date names."
 }

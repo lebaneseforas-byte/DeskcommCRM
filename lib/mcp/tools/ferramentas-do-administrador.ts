@@ -2,7 +2,8 @@
  * Capacidades que existem SÓ para quem administra, por um aplicativo conectado
  * (o ChatGPT, por exemplo) — nunca para um assistente de IA.
  *
- * Hoje: as de editar os próprios assistentes (`catalogo/agentes.ts`). Um
+ * Hoje: as de editar os próprios assistentes (`catalogo/agentes.ts`) e as de ler
+ * os relatórios do dia (`catalogo/relatorios.ts`), que são de quem gerencia. Um
  * assistente que pudesse ler e reescrever as próprias instruções seria a pior
  * porta do produto; o turno já não as monta (`apenasHumano`, ver
  * `lib/ai/runtime/tools.ts`) e o papel delas é `admin`, acima do `ai_operator`
@@ -18,8 +19,11 @@
  * assistentes entra aqui sozinha.
  */
 import { TOOLS_AGENTES } from "./catalogo/agentes";
+import { TOOLS_RELATORIOS } from "./catalogo/relatorios";
 
 export const MOTIVO_SO_DO_ADMINISTRADOR =
-  "Esta capacidade é de quem administra a empresa, por um aplicativo conectado como o ChatGPT. Um assistente não lê nem altera as próprias instruções.";
+  "Esta capacidade é de quem administra ou gerencia a empresa, por um aplicativo conectado como o ChatGPT. Um assistente não a usa.";
 
-export const IDS_DO_ADMINISTRADOR: ReadonlySet<string> = new Set(TOOLS_AGENTES.map((t) => t.name));
+export const IDS_DO_ADMINISTRADOR: ReadonlySet<string> = new Set(
+  [...TOOLS_AGENTES, ...TOOLS_RELATORIOS].map((t) => t.name),
+);

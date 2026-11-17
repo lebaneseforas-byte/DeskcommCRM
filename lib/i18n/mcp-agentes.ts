@@ -22,5 +22,11 @@ export const TEXTOS_MCP_AGENTES = {
   "Rascunho do assistente de IA": { es: "Borrador del asistente de IA" },
   "Teste do assistente de IA": { es: "Prueba del asistente de IA" },
   "Atendimento dos clientes": { es: "Atención a los clientes" },
-  "Esta capacidade é de quem administra a empresa, por um aplicativo conectado como o ChatGPT. Um assistente não lê nem altera as próprias instruções.": { es: "Esta capacidad es de quien administra la empresa, mediante una aplicación conectada como ChatGPT. Un asistente no lee ni modifica sus propias instrucciones." },
+  "Esta capacidade é de quem administra ou gerencia a empresa, por um aplicativo conectado como o ChatGPT. Um assistente não a usa.": { es: "Esta capacidad es de quien administra o gestiona la empresa, mediante una aplicación conectada como ChatGPT. Un asistente no la usa." },
+  "Ver como está o dia da operação": { es: "Ver cómo va el día de la operación" },
+  "Mostra o dia ao vivo: conversas novas e com mensagem do cliente por canal, quem espera uma pessoa, projetos, reclamações, pedidos de produto, negócios ganhos e perdidos e as falhas do dia.": { es: "Muestra el día en vivo: conversaciones nuevas y con mensaje del cliente por canal, quién espera a una persona, proyectos, reclamos, pedidos de producto, negocios ganados y perdidos y las fallas del día." },
+  "Ver os relatórios diários salvos": { es: "Ver los informes diarios guardados" },
+  "Lista os relatórios do dia que o sistema guarda sozinho, com os números principais de cada dia, para comparar dias e semanas.": { es: "Lista los informes del día que el sistema guarda solo, con los números principales de cada día, para comparar días y semanas." },
+  "Ler o relatório de um dia": { es: "Leer el informe de un día" },
+  "Mostra o relatório salvo de um dia, com o mesmo texto da tela de relatórios e os nomes atualizados.": { es: "Muestra el informe guardado de un día, con el mismo texto de la pantalla de informes y los nombres actualizados." },
 } as const;

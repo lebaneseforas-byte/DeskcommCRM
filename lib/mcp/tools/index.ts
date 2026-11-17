@@ -107,6 +107,7 @@ import {
   crmSaveAiAgentDraft,
   crmTestAiAgentVersion,
 } from "./agentes";
+import { crmGetDailyOperation, crmGetDailyReport, crmListDailyReports } from "./relatorios";
 import { crmSaveLeadDiagnosis } from "./diagnostico";
 
 // Cast via `unknown` porque McpToolDefinition<TInput> nao e covariante
@@ -166,6 +167,10 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   crmListAiAgents,
   crmGetAiAgentVersion,
   crmGetAiAgentTurn,
+  // read — relatórios do dia (só gestão; ver `./relatorios.ts`)
+  crmGetDailyOperation,
+  crmListDailyReports,
+  crmGetDailyReport,
   // write
   // A que consulta E marca numa chamada só vem primeiro: quando o cliente já deu
   // dia e hora, é o caminho curto, e é o que evita o turno morrer no meio (#831).
