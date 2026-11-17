@@ -16,8 +16,8 @@ import { requireRole } from "@/lib/auth/require-role";
 import { removeCatalogPresentationAudio } from "@/lib/catalogo/apresentacao-no-bucket";
 import { apagarDoBucket } from "@/lib/catalogo/fotos-no-bucket";
 import { guardarFotosPorUrl } from "@/lib/catalogo/fotos-por-url";
-import { capacidadesDaOrganizacao } from "@/lib/organizacao/capacidades";
-import { COLUNAS_DO_PRODUTO, produtoPatchSchema } from "@/lib/schemas/produtos";
+import { atualizarProduto, capacidadeDoProdutoPermitida } from "@/lib/catalogo/escrita-do-produto";
+import { produtoPatchSchema } from "@/lib/schemas/produtos";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 
@@ -52,10 +52,7 @@ export async function PATCH(
   const { fotos, ...campos } = parsed.data;
 
   const supabase = await createClient();
-  if (
-    campos.capacidade &&
-    !(await capacidadesDaOrganizacao(supabase, authz.org.orgId)).includes("capacidade_do_produto")
-  ) {
+  if (!(await capacidadeDoProdutoPermitida(supabase, authz.org.orgId, campos.capacidade))) {
     return fail("validation_failed", t("A capacidade do produto está desligada nesta empresa."), 422, { requestId });
   }
 
@@ -98,28 +95,25 @@ export async function PATCH(
     caminhos = guardadas.caminhos;
   }
 
-  const { data, error } = await supabase
-    .from("catalog_products")
-    .update({ ...campos, ...(caminhos ? { fotos: caminhos } : {}) })
-    .eq("organization_id", authz.org.orgId)
-    .eq("id", id)
-    .select(COLUNAS_DO_PRODUTO)
-    .maybeSingle();
-
-  if (error) {
-    // O update falhou depois do upload: os arquivos novos não são de ninguém.
+  // Update, código repetido, "não existe para você" e a auditoria: a mesma régua
+  // do MCP do CRM, em `lib/catalogo/escrita-do-produto.ts`.
+  const r = await atualizarProduto(supabase, {
+    orgId: authz.org.orgId,
+    id,
+    campos,
+    ...(caminhos ? { fotos: caminhos } : {}),
+    ator: { userId: authz.user.id, apiTokenId: null, requestId },
+  });
+  if (!r.ok) {
+    // A escrita falhou depois do upload: os arquivos novos não são de ninguém.
     if (caminhos?.length) await apagarDoBucket(authz.org.orgId, id, caminhos, requestId);
-    if (error.code === "23505") {
+    if (r.codigo === "conflict") {
       return fail("conflict", t("Já existe um produto com esse código."), 409, { requestId });
     }
+    if (r.codigo === "not_found") return fail("not_found", t("Produto não encontrado."), 404, { requestId });
     return fail("internal_error", "Erro ao salvar o produto.", 500, { requestId });
   }
-  // `maybeSingle` devolve null quando a RLS barrou ou o id não é desta org — os
-  // dois são "não existe para você", e 404 é a resposta honesta.
-  if (!data) {
-    if (caminhos?.length) await apagarDoBucket(authz.org.orgId, id, caminhos, requestId);
-    return fail("not_found", t("Produto não encontrado."), 404, { requestId });
-  }
+  const data = r.produto;
 
   // A foto que a lista nova não trouxe sai do bucket — a mesma limpeza que a
   // reimportação da planilha faz depois de gravar.
@@ -127,15 +121,6 @@ export async function PATCH(
     const substituidas = antigas.filter((c) => !caminhos!.includes(c));
     await apagarDoBucket(authz.org.orgId, id, substituidas, requestId);
   }
-
-  await audit({
-    organizationId: authz.org.orgId,
-    actorUserId: authz.user.id,
-    action: "catalog_product.updated",
-    resourceType: "catalog_products",
-    resourceId: id,
-    requestId,
-  });
 
   return ok(data, { requestId });
 }

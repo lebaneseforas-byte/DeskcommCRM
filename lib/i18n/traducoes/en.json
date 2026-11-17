@@ -9879,5 +9879,13 @@
   "Ver os relatórios diários salvos": "See the saved daily reports",
   "Lista os relatórios do dia que o sistema guarda sozinho, com os números principais de cada dia, para comparar dias e semanas.": "Lists the daily reports the system saves on its own, with each day's main numbers, to compare days and weeks.",
   "Ler o relatório de um dia": "Read one day's report",
-  "Mostra o relatório salvo de um dia, com o mesmo texto da tela de relatórios e os nomes atualizados.": "Shows the saved report of one day, with the same text as the reports screen and up-to-date names."
+  "Mostra o relatório salvo de um dia, com o mesmo texto da tela de relatórios e os nomes atualizados.": "Shows the saved report of one day, with the same text as the reports screen and up-to-date names.",
+  "Adicionar um material à base de conhecimento": "Add material to the knowledge base",
+  "Cria um material que os assistentes usam para responder: uma lista de perguntas e respostas ou um texto. O sistema prepara o material para a busca sozinho.": "Creates material the assistants use to answer: a list of questions and answers or a text. The system prepares it for search on its own.",
+  "Atualizar um material da base de conhecimento": "Update knowledge base material",
+  "Troca o nome de um material ou a lista inteira de perguntas e respostas. Os assistentes passam a usar a versão nova assim que ela fica pronta.": "Renames a material or replaces its whole list of questions and answers. The assistants start using the new version as soon as it is ready.",
+  "Cadastrar um produto": "Add a product",
+  "Cria um produto no catálogo, com código, nome, preço e estoque. As fotos são colocadas pela tela de produtos.": "Creates a product in the catalog, with code, name, price and stock. Photos are added on the products screen.",
+  "Alterar um produto": "Change a product",
+  "Muda preço, nome, descrição, estoque ou se o produto está à venda. Só muda o que for pedido.": "Changes price, name, description, stock or whether the product is for sale. Only what is asked changes."
 }

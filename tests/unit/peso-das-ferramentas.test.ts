@@ -79,6 +79,11 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
   "crm_get_daily_operation": { tokens: 153, motivo: EDITAR_ASSISTENTES },
   "crm_list_daily_reports": { tokens: 105, motivo: EDITAR_ASSISTENTES },
   "crm_get_daily_report": { tokens: 116, motivo: EDITAR_ASSISTENTES },
+  // Base de conhecimento e produtos (só gestão, por aplicativo conectado); nunca montadas no turno.
+  "crm_create_knowledge_source": { tokens: 399, motivo: EDITAR_ASSISTENTES },
+  "crm_update_knowledge_source": { tokens: 307, motivo: EDITAR_ASSISTENTES },
+  "crm_create_product": { tokens: 295, motivo: EDITAR_ASSISTENTES },
+  "crm_update_product": { tokens: 366, motivo: EDITAR_ASSISTENTES },
   "crm_list_contact_orders": { tokens: 234, motivo: BASE },
   "crm_search_products": { tokens: 362, motivo: BASE },
   "crm_get_honorarios_contrato": { tokens: 253, motivo: BASE },
@@ -211,7 +216,7 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
 // ChatGPT; nenhuma vai para o turno do agente). MEDIDO: 41653 = 39537 + 2116.
 // +478 com `configuracoes` no rascunho do assistente. MEDIDO: 42131 = 41653 + 478.
 // +374 com as 3 de relatório do dia (só gestão). MEDIDO: 42505 = 42131 + 374.
-const TETO_TOTAL = 42505;
+const TETO_TOTAL = 43872;
 
 const VARIANTE = "schedule_followup (com negócio)";
 

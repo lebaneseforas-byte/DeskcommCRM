@@ -29,4 +29,12 @@ export const TEXTOS_MCP_AGENTES = {
   "Lista os relatórios do dia que o sistema guarda sozinho, com os números principais de cada dia, para comparar dias e semanas.": { es: "Lista los informes del día que el sistema guarda solo, con los números principales de cada día, para comparar días y semanas." },
   "Ler o relatório de um dia": { es: "Leer el informe de un día" },
   "Mostra o relatório salvo de um dia, com o mesmo texto da tela de relatórios e os nomes atualizados.": { es: "Muestra el informe guardado de un día, con el mismo texto de la pantalla de informes y los nombres actualizados." },
+  "Adicionar um material à base de conhecimento": { es: "Agregar un material a la base de conocimiento" },
+  "Cria um material que os assistentes usam para responder: uma lista de perguntas e respostas ou um texto. O sistema prepara o material para a busca sozinho.": { es: "Crea un material que los asistentes usan para responder: una lista de preguntas y respuestas o un texto. El sistema prepara el material para la búsqueda solo." },
+  "Atualizar um material da base de conhecimento": { es: "Actualizar un material de la base de conocimiento" },
+  "Troca o nome de um material ou a lista inteira de perguntas e respostas. Os assistentes passam a usar a versão nova assim que ela fica pronta.": { es: "Cambia el nombre de un material o la lista completa de preguntas y respuestas. Los asistentes pasan a usar la versión nueva en cuanto está lista." },
+  "Cadastrar um produto": { es: "Registrar un producto" },
+  "Cria um produto no catálogo, com código, nome, preço e estoque. As fotos são colocadas pela tela de produtos.": { es: "Crea un producto en el catálogo, con código, nombre, precio y stock. Las fotos se agregan desde la pantalla de productos." },
+  "Alterar um produto": { es: "Modificar un producto" },
+  "Muda preço, nome, descrição, estoque ou se o produto está à venda. Só muda o que for pedido.": { es: "Cambia precio, nombre, descripción, stock o si el producto está a la venta. Solo cambia lo que se pide." },
 } as const;

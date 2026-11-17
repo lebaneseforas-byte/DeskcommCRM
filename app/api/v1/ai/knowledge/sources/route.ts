@@ -14,54 +14,19 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
-import { z } from "zod";
 import { ok, fail } from "@/lib/api/wrappers";
-import { audit } from "@/lib/audit";
 import { loadAuthUser } from "@/lib/auth/server";
 import { orgAtivaDaApi, requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseFaqMarkdown } from "@/lib/ai/rag/ingest/faq";
-import { temChaveDeEmbedding } from "@/lib/ai/embeddings/chave";
-import {
-  aceitaTextoColado,
-  canonizarTipoDeFonte,
-  ePerguntaEResposta,
-  rotuloDoTipo,
-} from "@/lib/ai/rag/tipos-de-fonte";
-import { BUCKET_DE_CONHECIMENTO } from "@/lib/ai/rag/ingest/documento";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { createSourceSchema, criarMaterial } from "@/lib/ai/knowledge/escrita-do-material";
 
 export const dynamic = "force-dynamic";
 
 // ---------------------------------------------------------------------------
 // Zod
 // ---------------------------------------------------------------------------
-
-const faqItemSchema = z.object({
-  question: z.string().min(1),
-  answer: z.string().min(1),
-  tags: z.array(z.string()).optional().default([]),
-  locale: z.string().optional().default("pt-BR"),
-});
-
-/**
- * O tipo chega como texto livre e é CANONIZADO na borda.
- *
- * Um `z.enum` aqui recusaria os nomes legados (`policy`, `conversations`) que
- * quem integrou por API ainda manda — e o CHECK do banco saiu justamente para o
- * vocabulário poder crescer sem migration. `canonizarTipoDeFonte` traduz; o que
- * não traduzir é recusado com a lista do que existe.
- */
-const createSourceSchema = z.object({
-  /** Opcional desde a 0181: o material é da organização. */
-  agent_id: z.string().uuid().optional(),
-  source_type: z.string().min(1),
-  name: z.string().trim().min(2).max(120),
-  items: z.array(faqItemSchema).optional(),
-  markdown_blob: z.string().optional(),
-  source_metadata: z.record(z.string(), z.unknown()).optional().default({}),
-});
 
 const SELECT_COLUNAS =
   "id, agent_id, organization_id, source_type, name, status, last_index_status, " +
@@ -133,206 +98,21 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   }
 
-  const input = parsed.data;
-  const tipo = canonizarTipoDeFonte(input.source_type);
-  if (tipo === null) {
-    return fail(
-      "validation_failed",
-      `Tipo de material desconhecido: "${input.source_type}". Use faq, documento, conversas ou catalogo.`,
-      422,
-      { requestId },
-    );
-  }
-
-  // Conteúdo mandado para um tipo que esta rota não ingere era ACEITO e
-  // descartado em silêncio: a fonte nascia vazia, com 201, e ninguém entendia
-  // por que o agente não sabia nada dali. Recusar alto é a única resposta honesta.
-  const temConteudo =
-    (input.items?.length ?? 0) > 0 || (input.markdown_blob?.trim().length ?? 0) > 0;
-  if (temConteudo && !aceitaTextoColado(tipo)) {
-    return fail(
-      "unprocessable_entity",
-      `Material de ${rotuloDoTipo(tipo).toLowerCase()} não recebe conteúdo colado — ` +
-        "ele é preenchido automaticamente.",
-      422,
-      { requestId },
-    );
-  }
-
-  const supabase = await createClient();
-
-  // `agent_id` é HISTÓRICO. Continua validado — mandar o id de um agente de
-  // outra organização tem de doer — mas não decide mais quem lê o material.
-  if (input.agent_id) {
-    const { data: agent, error: agentErr } = await supabase
-      .from("ai_agents")
-      .select("id")
-      .eq("id", input.agent_id)
-      .eq("organization_id", activeOrg.orgId)
-      .maybeSingle();
-
-    if (agentErr) {
-      console.error("[ai-knowledge-sources] validação do agente falhou:", agentErr.message);
-      return fail("internal_error", "Erro ao validar agent_id.", 500, { requestId });
-    }
-    if (!agent) {
-      return fail("not_found", t("Assistente não encontrado nesta organização."), 404, { requestId });
-    }
-  }
-
-  let faqItems: Array<{ question: string; answer: string; tags: string[]; locale: string }> = [];
-
-  if (ePerguntaEResposta(tipo)) {
-    if (input.items && input.items.length > 0) {
-      faqItems = input.items.map((it) => ({
-        question: it.question,
-        answer: it.answer,
-        tags: it.tags,
-        locale: it.locale,
-      }));
-    } else if (input.markdown_blob) {
-      faqItems = parseFaqMarkdown(input.markdown_blob);
-      if (faqItems.length === 0) {
-        return fail(
-          "invalid_request",
-          t("Não achei nenhum par pergunta/resposta no texto. Use uma linha ## Pergunta: e uma ## Resposta: por item."),
-          400,
-          { requestId },
-        );
-      }
-    } else {
-      return fail("invalid_request", t("Cole o conteúdo do material antes de criar."), 400, {
-        requestId,
-      });
-    }
-  } else if (tipo === "documento" && !input.markdown_blob?.trim()) {
-    return fail(
-      "invalid_request",
-      "Cole o texto do documento, ou envie o arquivo em /api/v1/ai/knowledge/sources/upload.",
-      400,
-      { requestId },
-    );
-  }
-
-  const admin = createAdminClient();
-
-  // TEXTO COLADO DE DOCUMENTO VIRA ARQUIVO.
-  //
-  // Um documento não é uma lista de pergunta/resposta: é texto corrido, e não
-  // havia onde guardá-lo — o indexador só sabia ler `ai_faq_items`, e era por
-  // isso que colar uma política produzia uma fonte que nunca indexava nada.
-  //
-  // Em vez de uma tabela nova para "texto que não é P/R", o texto é guardado
-  // como `.md` no mesmo bucket dos arquivos e segue exatamente a mesma rota de
-  // extração. Um destino, um caminho, um lugar para consertar.
-  let metadata: Record<string, unknown> = { ...(input.source_metadata ?? {}) };
-  if (tipo === "documento" && input.markdown_blob) {
-    const blobPath = `${activeOrg.orgId}/${randomUUID()}.md`;
-    const { error: upErr } = await admin.storage
-      .from(BUCKET_DE_CONHECIMENTO)
-      .upload(blobPath, Buffer.from(input.markdown_blob, "utf8"), {
-        contentType: "text/markdown",
-        upsert: false,
-      });
-    if (upErr) {
-      console.error("[ai-knowledge-sources] guardar o texto falhou:", upErr.message);
-      return fail("internal_error", t("Erro ao guardar o conteúdo do material."), 500, { requestId });
-    }
-    metadata = { ...metadata, blob_path: blobPath, ext: "md", origem: "texto_colado" };
-  }
-
-  const { data: ks, error: ksErr } = await admin
-    .from("ai_knowledge_sources")
-    .insert({
-      organization_id: activeOrg.orgId,
-      agent_id: input.agent_id ?? null,
-      source_type: tipo,
-      name: input.name,
-      status: "ready",
-      is_active: true,
-      source_metadata: metadata,
-      ingested_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (ksErr || !ks) {
-    // `ai_knowledge_sources_nome_unico_por_org`: dois materiais ativos não podem
-    // ter o mesmo nome — é por ele que a pessoa os distingue na tela e no
-    // seletor do assistente. Sem esta tradução o 23505 saía como 500.
-    if (ksErr?.code === "23505") {
-      return fail(
-        "knowledge_source_name_in_use",
-        `Já existe um material chamado "${input.name}". Escolha outro nome.`,
-        409,
-        { requestId },
-      );
-    }
-    console.error("[ai-knowledge-sources] insert falhou:", ksErr?.message);
-    return fail("internal_error", "Erro ao criar o material.", 500, { requestId });
-  }
-
-  const ksId: string = (ks as { id: string }).id;
-
-  let itemsCount = 0;
-  if (faqItems.length > 0) {
-    const rows = faqItems.map((item, idx) => ({
-      organization_id: activeOrg.orgId,
-      knowledge_source_id: ksId,
-      question: item.question,
-      answer: item.answer,
-      tags: item.tags,
-      locale: item.locale,
-      position: idx,
-    }));
-
-    const { error: itemsErr } = await admin.from("ai_faq_items").insert(rows);
-
-    if (itemsErr) {
-      // Fonte sem item nenhum é fonte vazia: melhor desfazer do que deixar uma
-      // linha que promete conteúdo e nunca vai indexar nada.
-      await admin.from("ai_knowledge_sources").delete().eq("organization_id", activeOrg.orgId).eq("id", ksId);
-      console.error("[ai-knowledge-sources] insert dos itens falhou:", itemsErr.message);
-      return fail("internal_error", t("Erro ao gravar o conteúdo do material."), 500, { requestId });
-    }
-    itemsCount = rows.length;
-  }
-
-  const { error: emitErr } = await admin.rpc("emit_event" as never, {
-    p_event_type: "knowledge_source.updated",
-    p_entity_kind: "ai_knowledge_source",
-    p_entity_id: ksId,
-    p_payload: {
-      knowledge_source_id: ksId,
-      agent_id: input.agent_id ?? null,
-      source_type: tipo,
-    },
-    p_organization_id: activeOrg.orgId,
-  } as never);
-
-  if (emitErr) {
-    console.warn("[ai-knowledge-sources] emit_event falhou (não bloqueia):", emitErr.message);
-  }
-
-  // Quem pôs este material no acervo? A trilha responde — com tipo e contagem,
-  // nunca com o texto (a tabela é append-only e a cascata da LGPD não a alcança).
-  void audit({
-    action: "ai.knowledge_source_created",
-    actorUserId: authz.user.id,
-    organizationId: activeOrg.orgId,
-    resourceType: "ai_knowledge_source",
-    resourceId: ksId,
-    requestId,
-    metadata: { source_type: tipo, items_count: itemsCount },
+  // A sequência inteira (tipo, conteúdo, assistente da organização, FAQ ou
+  // documento, insert, itens, indexação, auditoria) mora em
+  // `lib/ai/knowledge/escrita-do-material.ts` — a mesma do MCP do CRM.
+  const r = await criarMaterial({
+    dbLeitura: await createClient(),
+    dbEscrita: createAdminClient(),
+    orgId: activeOrg.orgId,
+    input: parsed.data,
+    ator: { userId: authz.user.id, apiTokenId: null, requestId },
   });
-
-  // A resposta DIZ se a indexação vai acontecer. Sem isto a tela prometia
-  // "começa em instantes" para uma organização sem chave de embedding, e o
-  // material ficava parado sem que nada na tela mudasse.
-  const temChave = await temChaveDeEmbedding(activeOrg.orgId);
-
-  return ok(
-    { id: ksId, items_count: itemsCount, indexacao_habilitada: temChave },
-    { status: 201, requestId },
-  );
+  if (!r.ok) {
+    return fail(r.codigo, t(r.mensagem), r.status, {
+      requestId,
+      ...(r.details !== undefined ? { details: r.details as Record<string, unknown> } : {}),
+    });
+  }
+  return ok(r.data, { status: 201, requestId });
 }

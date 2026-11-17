@@ -108,6 +108,7 @@ import {
   crmTestAiAgentVersion,
 } from "./agentes";
 import { crmGetDailyOperation, crmGetDailyReport, crmListDailyReports } from "./relatorios";
+import { crmCreateKnowledgeSource, crmCreateProduct, crmUpdateKnowledgeSource, crmUpdateProduct } from "./cadastros";
 import { crmSaveLeadDiagnosis } from "./diagnostico";
 
 // Cast via `unknown` porque McpToolDefinition<TInput> nao e covariante
@@ -222,6 +223,11 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   crmTestAiAgentVersion,
   crmPublishAiAgentVersion,
   crmRollbackAiAgent,
+  // write — base de conhecimento e produtos (só gestão; ver `./cadastros.ts`)
+  crmCreateKnowledgeSource,
+  crmUpdateKnowledgeSource,
+  crmCreateProduct,
+  crmUpdateProduct,
   // handoff (special)
   crmRequestHumanHandoff,
 ] as unknown as ReadonlyArray<McpToolDefinition>;

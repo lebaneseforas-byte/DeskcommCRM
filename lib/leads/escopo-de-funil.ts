@@ -192,6 +192,11 @@ export const ALVO_DE_FUNIL: Record<string, AlvoDeFunil> = {
   crm_test_ai_agent_version: "sem_funil",
   crm_publish_ai_agent_version: "sem_funil",
   crm_rollback_ai_agent: "sem_funil",
+  // Base de conhecimento e produtos (só gestão): são da empresa, não de um lead.
+  crm_create_knowledge_source: "sem_funil",
+  crm_update_knowledge_source: "sem_funil",
+  crm_create_product: "sem_funil",
+  crm_update_product: "sem_funil",
 };
 
 /**

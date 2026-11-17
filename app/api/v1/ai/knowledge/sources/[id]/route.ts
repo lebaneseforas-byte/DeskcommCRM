@@ -9,32 +9,18 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
-import { z } from "zod";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { canonizarTipoDeFonte } from "@/lib/ai/rag/tipos-de-fonte";
+import { atualizarMaterial, patchSourceSchema } from "@/lib/ai/knowledge/escrita-do-material";
 
 export const dynamic = "force-dynamic";
 
 // ---------------------------------------------------------------------------
 // Zod schema for PATCH
 // ---------------------------------------------------------------------------
-
-const faqItemSchema = z.object({
-  question: z.string().min(1),
-  answer: z.string().min(1),
-  tags: z.array(z.string()).optional().default([]),
-  locale: z.string().optional().default("pt-BR"),
-});
-
-const patchSourceSchema = z.object({
-  name: z.string().min(2).max(120).optional(),
-  items: z.array(faqItemSchema).optional(),
-  source_metadata: z.record(z.string(), z.unknown()).optional(),
-});
 
 // ---------------------------------------------------------------------------
 // Shared: resolve auth + role gate
@@ -129,141 +115,18 @@ export async function PATCH(
     });
   }
 
-  const input = parsed.data;
-
-  // Verify the source exists and belongs to the org (user-scoped client for RLS check).
-  const supabase = await createClient();
-  const { data: existing, error: fetchErr } = await supabase
-    .from("ai_knowledge_sources")
-    .select("id, source_type, agent_id")
-    .eq("id", sourceId)
-    .eq("organization_id", activeOrg.orgId)
-    .maybeSingle();
-
-  if (fetchErr) {
-    console.error("[ai-knowledge-sources] PATCH fetch failed:", fetchErr.message);
-    return fail("internal_error", "Erro ao verificar fonte.", 500, { requestId });
-  }
-  if (!existing) {
-    return fail("not_found", "Fonte de conhecimento não encontrada.", 404, { requestId });
-  }
-
-  const ksRow = existing as { id: string; source_type: string; agent_id: string | null };
-  const tipo = canonizarTipoDeFonte(ksRow.source_type);
-
-  // `items` SÓ tem efeito em `faq`. A conferência vem antes de QUALQUER escrita.
-  //
-  // A recusa anterior testava `!aceitaTextoColado(tipo)`, e `documento` aceita
-  // texto colado — na CRIAÇÃO, onde o texto vira arquivo. No PATCH isso passava
-  // pela recusa, não entrava no ramo do FAQ e terminava em `200 { id }`: quem
-  // integra por API achava que tinha trocado o conteúdo e nada mudou. E a
-  // recusa vinha DEPOIS do `update` de nome/metadata, então um 422 em
-  // `{ name, items }` já tinha gravado o nome novo. Recusa alta, antes de tudo.
-  if (input.items !== undefined && tipo !== "faq") {
-    return fail(
-      "unprocessable_entity",
-      "Este material não é preenchido por texto colado — envie o arquivo ou aguarde a rotina que o alimenta.",
-      422,
-      { requestId },
-    );
-  }
-
-  // Build update payload (only provided fields).
-  const updatePayload: Record<string, unknown> = {};
-  if (input.name !== undefined) updatePayload.name = input.name;
-  if (input.source_metadata !== undefined) updatePayload.source_metadata = input.source_metadata;
-
-  const admin = createAdminClient();
-
-  if (Object.keys(updatePayload).length > 0) {
-    const { error: updateErr } = await admin
-      .from("ai_knowledge_sources")
-      .update(updatePayload)
-      .eq("id", sourceId)
-      .eq("organization_id", activeOrg.orgId);
-
-    if (updateErr) {
-      console.error("[ai-knowledge-sources] PATCH update failed:", updateErr.message);
-      return fail("internal_error", "Erro ao atualizar fonte.", 500, { requestId });
-    }
-  }
-
-  // Replace FAQ items if provided.
-  let itemsCount: number | undefined;
-  if (input.items !== undefined && tipo === "faq") {
-    // Delete existing items.
-    const { error: delErr } = await admin
-      .from("ai_faq_items")
-      .delete()
-      .eq("knowledge_source_id", sourceId)
-      .eq("organization_id", activeOrg.orgId);
-
-    if (delErr) {
-      console.error("[ai-knowledge-sources] PATCH delete items failed:", delErr.message);
-      return fail("internal_error", "Erro ao remover itens antigos.", 500, { requestId });
-    }
-
-    if (input.items.length > 0) {
-      const rows = input.items.map((item, idx) => ({
-        organization_id: activeOrg.orgId,
-        knowledge_source_id: sourceId,
-        question: item.question,
-        answer: item.answer,
-        tags: item.tags,
-        locale: item.locale,
-        position: idx,
-      }));
-
-      const { error: insertErr } = await admin.from("ai_faq_items").insert(rows);
-
-      if (insertErr) {
-        console.error("[ai-knowledge-sources] PATCH insert items failed:", insertErr.message);
-        return fail("internal_error", "Erro ao inserir novos itens FAQ.", 500, { requestId });
-      }
-      itemsCount = rows.length;
-    } else {
-      itemsCount = 0;
-    }
-  }
-
-  // Emit knowledge_source.updated (fire-and-forget).
-  const { error: emitErr } = await admin.rpc("emit_event" as never, {
-    p_event_type: "knowledge_source.updated",
-    p_entity_kind: "ai_knowledge_source",
-    p_entity_id: sourceId,
-    p_payload: {
-      knowledge_source_id: sourceId,
-      agent_id: ksRow.agent_id,
-      source_type: ksRow.source_type,
-    },
-    p_organization_id: activeOrg.orgId,
-  } as never);
-
-  if (emitErr) {
-    console.warn("[ai-knowledge-sources] emit_event failed (non-blocking):", emitErr.message);
-  }
-
-  // A trilha responde "quem mudou o que o agente diz aos clientes". Só ids,
-  // nomes de campo e contagem — o texto do material nunca entra: a tabela é
-  // append-only e a cascata da LGPD não a alcança.
-  void audit({
-    action: "ai.knowledge_source_updated",
-    actorUserId: authUser.id,
-    organizationId: activeOrg.orgId,
-    resourceType: "ai_knowledge_source",
-    resourceId: sourceId,
-    requestId,
-    metadata: {
-      source_type: ksRow.source_type,
-      campos: Object.keys(updatePayload),
-      ...(itemsCount !== undefined ? { items_count: itemsCount } : {}),
-    },
+  // Verificar o material, renomear, trocar a FAQ, reindexar e auditar: a mesma
+  // régua do MCP do CRM, em `lib/ai/knowledge/escrita-do-material.ts`.
+  const r = await atualizarMaterial({
+    dbLeitura: await createClient(),
+    dbEscrita: createAdminClient(),
+    orgId: activeOrg.orgId,
+    sourceId,
+    input: parsed.data,
+    ator: { userId: authUser.id, apiTokenId: null, requestId },
   });
-
-  return ok(
-    { id: sourceId, ...(itemsCount !== undefined ? { items_count: itemsCount } : {}) },
-    { requestId },
-  );
+  if (!r.ok) return fail(r.codigo, r.mensagem, r.status, { requestId });
+  return ok(r.data, { requestId });
 }
 
 // ---------------------------------------------------------------------------

@@ -16,7 +16,6 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
-import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import {
@@ -26,10 +25,9 @@ import {
   paginaPedida,
   PRODUTOS_POR_PAGINA,
 } from "@/lib/catalogo/busca-da-tela";
-import { moedaDaOrganizacao } from "@/lib/catalogo/moeda-da-org";
+import { capacidadeDoProdutoPermitida, inserirProduto } from "@/lib/catalogo/escrita-do-produto";
 import { guardarFotosPorUrl } from "@/lib/catalogo/fotos-por-url";
 import { apagarDoBucket } from "@/lib/catalogo/fotos-no-bucket";
-import { capacidadesDaOrganizacao } from "@/lib/organizacao/capacidades";
 import { COLUNAS_DO_PRODUTO, produtoCreateSchema } from "@/lib/schemas/produtos";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -121,15 +119,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const supabase = await createClient();
-  if (
-    parsed.data.capacidade &&
-    !(await capacidadesDaOrganizacao(supabase, authz.org.orgId)).includes("capacidade_do_produto")
-  ) {
+  if (!(await capacidadeDoProdutoPermitida(supabase, authz.org.orgId, parsed.data.capacidade))) {
     return fail("validation_failed", t("A capacidade do produto está desligada nesta empresa."), 422, { requestId });
   }
-
-  // A moeda vem da organização, nunca do corpo — ver `moedaDaOrganizacao()`.
-  const moeda = await moedaDaOrganizacao(supabase, authz.org.orgId);
 
   // `fotos` é URL de ENTRADA e NÃO é coluna: sai do corpo antes do insert, como
   // a moeda sai antes de qualquer decisão. Ver o comentário do campo em
@@ -166,41 +158,28 @@ export async function POST(req: NextRequest): Promise<Response> {
     caminhos = guardadas.caminhos;
   }
 
-  const { data, error } = await supabase
-    .from("catalog_products")
-    .insert({
-      ...campos,
-      ...(produtoId ? { id: produtoId } : {}),
-      ...(caminhos ? { fotos: caminhos } : {}),
-      moeda,
-      organization_id: authz.org.orgId,
-      origem: "manual",
-    })
-    .select(COLUNAS_DO_PRODUTO)
-    .single();
-
-  if (error) {
+  // Moeda da organização (nunca do corpo), insert, código repetido e auditoria:
+  // a mesma régua do MCP do CRM, em `lib/catalogo/escrita-do-produto.ts`.
+  const r = await inserirProduto(supabase, {
+    orgId: authz.org.orgId,
+    campos,
+    ...(produtoId ? { id: produtoId } : {}),
+    ...(caminhos ? { fotos: caminhos } : {}),
+    ator: { userId: authz.user.id, apiTokenId: null, requestId },
+  });
+  if (!r.ok) {
     // Os arquivos já subiram e a linha não existe: sem esta limpeza, um código
     // repetido deixaria fotos órfãs no bucket pagas por ninguém.
     if (produtoId && caminhos?.length) {
       await apagarDoBucket(authz.org.orgId, produtoId, caminhos, requestId);
     }
-    // 23505 = já existe produto com este código nesta organização. A recusa
-    // nomeia o campo porque quem lê é quem digitou.
-    if (error.code === "23505") {
+    // Código repetido nesta organização: a recusa nomeia o campo.
+    if (r.codigo === "conflict") {
       return fail("conflict", t("Já existe um produto com esse código."), 409, { requestId });
     }
     return fail("internal_error", "Erro ao salvar o produto.", 500, { requestId });
   }
-
-  await audit({
-    organizationId: authz.org.orgId,
-    actorUserId: authz.user.id,
-    action: "catalog_product.created",
-    resourceType: "catalog_products",
-    resourceId: (data as unknown as { id: string }).id,
-    requestId,
-  });
+  const data = r.produto;
 
   return ok(data, { requestId, status: 201 });
 }
