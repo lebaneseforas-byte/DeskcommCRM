@@ -1,10 +1,8 @@
 import type { EmailDeliveryError } from "@/lib/email/roteador";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { issueInvite } from "@/lib/auth/issue-invite";
-import { emitirConvite } from "@/lib/team/convites";
+import { convidarPessoas } from "@/lib/team/convidar";
 import { isServiceRoleConfigured } from "@/lib/audit";
-import { lerLimiteDoPlano, mensagemDoLimite } from "@/lib/cobranca/limites";
-import { logger } from "@/lib/logger";
 /**
  * POST /api/v1/team/invite — bulk-invite up to 20 emails.
  *
@@ -67,65 +65,33 @@ export async function POST(req: NextRequest): Promise<Response> {
     throw err;
   }
 
-  const sent: SentItem[] = [];
-  const failed: FailedItem[] = [];
-
-  const admin = isServiceRoleConfigured() ? createAdminClient() : null;
   const inviterName = authUser.full_name ?? authUser.email ?? "Um colega";
-  // Emails com membership ATIVA na org — para pular o reconvite de quem já é membro.
-  // O schema `auth` NÃO é acessível via PostgREST (erro "Invalid schema: auth"), então
-  // resolvemos email↔usuário pela GoTrue admin API (getUserById) — mesmo padrão de
-  // app/api/v1/team/route.ts. N pequeno (poucos membros por org no perfil BPO).
-  const memberEmails = new Set<string>();
-  if (admin) {
-    const { data: members } = await admin
-      .from("user_organizations")
-      .select("user_id, provisional_until_handover")
-      .eq("organization_id", activeOrg.orgId)
-      .is("revoked_at", null);
 
-    // Plano cheio: RECUSA antes do e-mail (spec cobrança §5, D-10; decisão do
-    // dono de 30/09), com a saída na frase. A trava do que já foi convidado
-    // segue no gatilho de assentos, no ACEITE. Convite pendente não conta, e o
-    // provisório do handover também não — a mesma contagem do gatilho. Ler o
-    // limite falhou → segue: falhou a informação, e a trava continua no banco.
-    const ativos = (members ?? []).filter((m) => !m.provisional_until_handover).length;
-    let limite: number | null = null;
-    try {
-      limite = await lerLimiteDoPlano(admin, activeOrg.orgId, "assentos");
-    } catch (err) {
-      logger.warn("team.invite: limite do plano não pôde ser lido — o convite segue", {
-        organization_id: activeOrg.orgId,
-        request_id: requestId,
-        causa: err instanceof Error ? err.message : String(err),
-      });
+  // Com service-role: plano cheio, quem já é membro e a linha de `team_invites`
+  // moram em `lib/team/convidar.ts` — a mesma régua do MCP do CRM.
+  if (isServiceRoleConfigured()) {
+    const r = await convidarPessoas(createAdminClient(), {
+      orgId: activeOrg.orgId,
+      orgName: activeOrg.name,
+      inviterId: authUser.id,
+      inviterName,
+      idioma: authUser.idioma,
+      requestId,
+      convites: input.invitations,
+    });
+    if (!r.ok) {
+      return fail(r.codigo, r.mensagem, 409, { requestId, details: { recurso: "assentos", limite: r.limite } });
     }
-    if (limite !== null && ativos >= limite) {
-      return fail("plan_limit_reached", mensagemDoLimite("assentos", limite, authUser.idioma), 409, {
-        requestId,
-        details: { recurso: "assentos", limite },
-      });
-    }
-
-    for (const m of members ?? []) {
-      const { data: u } = await admin.auth.admin.getUserById(m.user_id as string);
-      const memberEmail = u?.user?.email?.trim().toLowerCase();
-      if (memberEmail) memberEmails.add(memberEmail);
-    }
+    return ok({ sent: r.sent, failed: r.failed }, { status: 201, requestId });
   }
 
+  // Sem service-role: degrada para só-token (nada some, só não persiste).
+  const sent: SentItem[] = [];
+  const failed: FailedItem[] = [];
   for (const inv of input.invitations) {
-    const email = inv.email.trim().toLowerCase();
-
-    // já é membro ativo → pula (não reenvia convite)
-    if (memberEmails.has(email)) {
-      failed.push({ email, reason: "already_member" });
-      continue;
-    }
-
-    if (admin) {
-      const { convite, accept_url, email_dispatched, email_error } = await emitirConvite(admin, {
-        email,
+    sent.push(
+      await issueInvite({
+        email: inv.email.trim().toLowerCase(),
         role: inv.role,
         interfaceSettings: inv.interface_settings,
         organizationId: activeOrg.orgId,
@@ -133,30 +99,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         inviterId: authUser.id,
         inviterName,
         requestId,
-      });
-      sent.push({
-        email,
-        invite_id: convite.id,
-        expires_at: convite.expires_at,
-        email_dispatched,
-        email_error,
-        accept_url,
-      });
-    } else {
-      sent.push(
-        await issueInvite({
-          email,
-          role: inv.role,
-          interfaceSettings: inv.interface_settings,
-          organizationId: activeOrg.orgId,
-          orgName: activeOrg.name,
-          inviterId: authUser.id,
-          inviterName,
-          requestId,
-        }),
-      );
-    }
+      }),
+    );
   }
-
   return ok({ sent, failed }, { status: 201, requestId });
 }

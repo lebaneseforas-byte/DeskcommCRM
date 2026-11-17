@@ -8,7 +8,8 @@
  * organização certa, pedir a transição à máquina de estados, auditar. Espalhado
  * em oito arquivos, esse "em volta" diverge — e o dia em que um deles esquecer de
  * conferir o estado é o dia em que uma campanha cancelada volta a enviar. As
- * ações em si moram em `lib/campanhas/acoes.ts`; aqui só há despacho.
+ * ações em si moram em `lib/campanhas/acoes.ts`, e o despacho em
+ * `lib/campanhas/executar-acao.ts` (o mesmo do MCP do CRM).
  *
  * O caminho na URL continua sendo o da Spec 12 §16 (`/prepare`, `/start`, …, em
  * português): `acao` é validada contra um mapa fechado, então nenhuma URL
@@ -19,44 +20,13 @@ import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
 import { fail, ok } from "@/lib/api/wrappers";
-import { audit } from "@/lib/audit";
-import type { AuditAction } from "@/lib/audit/actions";
 import { requireRole } from "@/lib/auth/require-role";
-import {
-  agendarAcao,
-  cancelarAcao,
-  carregarCampanha,
-  duplicarAcao,
-  iniciarAcao,
-  pausarAcao,
-  prepararAcao,
-  testarAcao,
-  type Desfecho,
-} from "@/lib/campanhas/acoes";
-import { agendarSchema, testarSchema } from "@/lib/campanhas/schemas";
-import { knobsDoCanal } from "@/lib/automation/janela-do-canal";
+import { ehAcaoDeCampanha, executarAcaoDaCampanha } from "@/lib/campanhas/executar-acao";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
-
-const ACOES = [
-  "preparar",
-  "iniciar",
-  "agendar",
-  "pausar",
-  "retomar",
-  "cancelar",
-  "duplicar",
-  "testar",
-] as const;
-
-type Acao = (typeof ACOES)[number];
-
-function ehAcao(valor: string): valor is Acao {
-  return (ACOES as readonly string[]).includes(valor);
-}
 
 export async function POST(
   req: NextRequest,
@@ -71,121 +41,25 @@ export async function POST(
   const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { id, acao } = await ctx.params;
 
-  if (!ehAcao(acao)) {
+  if (!ehAcaoDeCampanha(acao)) {
     return fail("not_found", t("Ação de campanha desconhecida."), 404, { requestId });
   }
 
+  // Só `agendar` e `testar` leem o corpo; as outras ações ignoram.
+  const corpo = acao === "agendar" || acao === "testar" ? await req.json().catch(() => null) : null;
+
   // Admin client porque duas ações ENVIAM (teste e, por tabela, a preparação
   // lê contatos de toda a organização). Toda consulta filtra `organization_id`
-  // à mão, resolvido do papel conferido acima — nunca do corpo.
-  const admin = createAdminClient();
-  const carregada = await carregarCampanha(admin, authz.org.orgId, id);
-  if (!carregada.ok) {
-    return fail(carregada.codigo, t(carregada.mensagem), carregada.status, { requestId });
-  }
-  const campanha = carregada.campanha;
-  const agora = new Date();
-
-  let desfecho: Desfecho<Record<string, unknown>>;
-  let acaoAuditada: AuditAction | null = null;
-  let extra: Record<string, unknown> = {};
-
-  switch (acao) {
-    case "preparar": {
-      desfecho = await prepararAcao(admin, campanha, agora);
-      acaoAuditada = "campaign.prepared";
-      break;
-    }
-    case "iniciar":
-    case "retomar": {
-      const r = await iniciarAcao(admin, campanha, agora);
-      desfecho = r;
-      acaoAuditada = r.ok && r.retomada ? "campaign.resumed" : "campaign.started";
-      break;
-    }
-    case "agendar": {
-      const parsed = agendarSchema.safeParse(await req.json().catch(() => null));
-      if (!parsed.success) {
-        return fail("validation_failed", t("Informe a data do agendamento."), 422, { requestId });
-      }
-      desfecho = await agendarAcao(admin, campanha, new Date(parsed.data.scheduled_at), agora);
-      acaoAuditada = "campaign.scheduled";
-      extra = { scheduled_at: parsed.data.scheduled_at };
-      break;
-    }
-    case "pausar": {
-      desfecho = await pausarAcao(admin, campanha, agora);
-      acaoAuditada = "campaign.paused";
-      break;
-    }
-    case "cancelar": {
-      desfecho = await cancelarAcao(admin, campanha, agora);
-      acaoAuditada = "campaign.cancelled";
-      break;
-    }
-    case "duplicar": {
-      desfecho = await duplicarAcao(admin, campanha, authz.user.id);
-      acaoAuditada = "campaign.duplicated";
-      break;
-    }
-    case "testar": {
-      if (campanha.channel_session_id === null) {
-        return fail(
-          "campanha_conteudo_invalido",
-          t("Campanha de e-mail ainda não é enviada: esta entrega guarda o assunto, o corpo e o público. O envio entra na fatia seguinte."),
-          422,
-          { requestId },
-        );
-      }
-      const parsed = testarSchema.safeParse(await req.json().catch(() => null));
-      if (!parsed.success) {
-        return fail("validation_failed", t("Escolha um contato para o teste."), 422, { requestId });
-      }
-      // O fuso é o do NÚMERO (channel_knobs), que é o mesmo que a janela de
-      // envio usa — a saudação do teste tem de ser a que o destinatário veria.
-      const knobs = await knobsDoCanal(admin, authz.org.orgId, campanha.channel_session_id);
-      desfecho = await testarAcao(admin, campanha, parsed.data.contact_id, agora, knobs.timezone);
-      acaoAuditada = "campaign.test_sent";
-      break;
-    }
-  }
-
-  if (!desfecho.ok) {
-    // Falha depois de gravar (o cancelamento sem a fila fechada): o estado
-    // mudou, então a trilha registra o que ficou gravado — e a resposta, o erro.
-    if (acaoAuditada && desfecho.gravado) {
-      void audit({
-        action: acaoAuditada,
-        actorUserId: authz.user.id,
-        organizationId: authz.org.orgId,
-        resourceType: "campaign",
-        resourceId: campanha.id,
-        requestId,
-        metadata: { ...extra, ...desfecho.gravado },
-      });
-    }
-    return fail(desfecho.codigo, t(desfecho.mensagem), desfecho.status, { requestId });
-  }
-
-  if (acaoAuditada) {
-    void audit({
-      action: acaoAuditada,
-      actorUserId: authz.user.id,
-      organizationId: authz.org.orgId,
-      resourceType: "campaign",
-      resourceId: campanha.id,
-      requestId,
-      // Sem telefone, sem texto: id e contagem bastam para responder "quem
-      // mandou isso, e quando?".
-      metadata: { ...extra, ...semOk(desfecho) },
-    });
-  }
-
-  return ok(semOk(desfecho), { requestId });
-}
-
-/** O corpo da resposta sem o `ok`, que é ruído para quem lê `{ data }`. */
-function semOk(d: { ok: true } & Record<string, unknown>): Record<string, unknown> {
-  const { ok: _ignorado, ...resto } = d;
-  return resto;
+  // à mão, resolvido do papel conferido acima — nunca do corpo. O despacho, a
+  // máquina de estados e a auditoria moram em `lib/campanhas/executar-acao.ts`.
+  const r = await executarAcaoDaCampanha(createAdminClient(), {
+    orgId: authz.org.orgId,
+    campanhaId: id,
+    acao,
+    corpo,
+    ator: { userId: authz.user.id, apiTokenId: null, requestId },
+    t,
+  });
+  if (!r.ok) return fail(r.codigo, r.mensagem, r.status, { requestId });
+  return ok(r.data, { requestId });
 }

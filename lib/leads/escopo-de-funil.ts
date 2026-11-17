@@ -204,6 +204,18 @@ export const ALVO_DE_FUNIL: Record<string, AlvoDeFunil> = {
   crm_disable_followup_flow: "sem_funil",
   crm_create_message_template: "sem_funil",
   crm_update_message_template: "sem_funil",
+  // Regras, equipe e campanhas (só gestão): da empresa, não de um lead.
+  crm_create_automation_rule: "sem_funil",
+  crm_update_automation_rule: "sem_funil",
+  crm_invite_team_members: "sem_funil",
+  crm_change_team_member_role: "sem_funil",
+  crm_create_campaign_draft: "sem_funil",
+  crm_prepare_campaign: "sem_funil",
+  crm_test_campaign: "sem_funil",
+  crm_start_campaign: "sem_funil",
+  crm_schedule_campaign: "sem_funil",
+  crm_pause_campaign: "sem_funil",
+  crm_cancel_campaign: "sem_funil",
 };
 
 /**

@@ -15,6 +15,12 @@
  * ela faz. Deixar o agente ESCREVER a ação seria deixá-lo escolher para qual
  * endereço externo a empresa manda dados — e aí o gate humano vira decorativo.
  *
+ * A exceção, também decisão: QUEM GERENCIA, por um aplicativo conectado (o
+ * ChatGPT), cria e edita regra (`lib/mcp/tools/automacoes.ts`, `apenasHumano`).
+ * E mesmo ali o endereço externo fica de fora — `call_webhook` e e-mail para
+ * endereço fixo só pela tela —, a regra nasce pausada e ligar continua sendo
+ * esta capacidade, `critico`, com a sua confirmação.
+ *
  * ⚠️ `actions` NUNCA SAI COM `config` CRU. A configuração de `call_webhook`
  * carrega `secret_enc` e a URL de destino. O que sai daqui é a LISTA DE TIPOS de
  * ação — o suficiente para dizer "esta regra manda mensagem e aplica marcador",

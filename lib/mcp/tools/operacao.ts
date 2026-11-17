@@ -513,7 +513,8 @@ export const crmSetAutomationRuleActive: McpToolDefinition<typeof setRuleActiveS
     "Liga ou desliga uma regra automática. LIGAR faz a regra rodar sozinha em TODO evento que casar, indefinidamente, " +
     "sem ninguém assistindo — e as ações podem enviar mensagem ao cliente ou mandar dados para fora da empresa. " +
     "Confira as ações com crm_list_automation_rules antes, e confirme com um humano. " +
-    "Criar, editar e apagar regra não é possível por aqui, de propósito.",
+    "Um assistente não cria, edita nem apaga regra, de propósito. Quem gerencia, por um aplicativo conectado, cria " +
+    "e edita regras PAUSADAS (crm_create_automation_rule / crm_update_automation_rule); apagar é só pela tela.",
   inputSchema: setRuleActiveShape,
   category: "write",
   requiresRole: "manager",

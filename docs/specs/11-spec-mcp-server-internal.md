@@ -330,10 +330,10 @@ O servidor manda a cada cliente as dicas do protocolo (`annotations`) a partir d
 catálogo: `readOnlyHint` para leitura, `destructiveHint` para `critico` (`dicasDaFerramenta`,
 `lib/mcp/server.ts`). O limite do texto de instruções é o da tela (20.000 caracteres).
 
-### 3.5 Gerir a empresa por aplicativo conectado (relatórios, cadastros, follow-ups)
+### 3.5 Gerir a empresa por aplicativo conectado (relatórios, cadastros, follow-ups, regras, equipe, campanhas)
 
 Mesma régua da §3.4 — `apenasHumano`, fora dos pacotes do assistente
-(`IDS_DO_ADMINISTRADOR`) —, mas com papel `manager`, o das telas equivalentes. Nenhuma apaga;
+(`IDS_DO_ADMINISTRADOR`) —, com o papel da tela equivalente (`manager`; `admin` na equipe). Nenhuma apaga;
 apagar, fotos e mídia de resposta pronta ficam na tela. Cada escrita audita com
 `actorApiTokenId`, e a regra mora em `lib/`, usada também pela rota da tela.
 
@@ -348,6 +348,14 @@ apagar, fotos e mídia de resposta pronta ficam na tela. Cada escrita audita com
 | `crm_publish_followup_flow` | `mcp:write` | `critico`; mesma conferência do botão Publicar | `lib/followup/escrita-do-fluxo.ts` |
 | `crm_disable_followup_flow` | `mcp:write` | desliga para clientes novos | `lib/followup/escrita-do-fluxo.ts` |
 | `crm_create_message_template` / `crm_update_message_template` | `mcp:write` | resposta pronta COMPARTILHADA (a pessoal não é alcançada) | `lib/templates/escrita-da-resposta.ts` |
+| `crm_get_automation_rule` | `mcp:read` | regra inteira, sem segredo | — |
+| `crm_create_automation_rule` / `crm_update_automation_rule` | `mcp:write` | nasce PAUSADA; gatilho/condições/ações só com a regra pausada; `call_webhook` e e-mail para endereço fixo recusados (só pela tela) | `lib/automation/escrita-da-regra.ts` |
+| `crm_list_team_invites` | `mcp:read` | convites pendentes (papel `admin`) | — |
+| `crm_invite_team_members` / `crm_change_team_member_role` | `mcp:write` | `critico`, papel `admin`; nunca dá nem tira `admin`; quem autorizou a conexão não muda o próprio papel | `lib/team/convidar.ts`, `lib/team/alterar-papel.ts` |
+| `crm_list_campaigns` / `crm_get_campaign` | `mcp:read` | campanhas e contagens | `lib/campanhas/acoes.ts` |
+| `crm_create_campaign_draft` | `mcp:write` | rascunho, nada é enviado | `lib/campanhas/criar-campanha.ts` |
+| `crm_prepare_campaign` / `crm_test_campaign` / `crm_pause_campaign` | `mcp:write` | preparar (contagem), um envio de teste, pausar | `lib/campanhas/executar-acao.ts` |
+| `crm_start_campaign` / `crm_schedule_campaign` / `crm_cancel_campaign` | `mcp:write` | `critico`; envia (ou descarta) para a lista inteira | `lib/campanhas/executar-acao.ts` |
 
 ## 4. Tool selection (per agent)
 

@@ -14,12 +14,11 @@ import type { NextRequest } from "next/server";
 
 import { ok, fail } from "@/lib/api/wrappers";
 import { ApiError } from "@/lib/api/types";
-import { audit } from "@/lib/audit";
-import { invalidarUsuario } from "@/lib/auth/cache-curto";
 import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { changeRoleSchema, validateRequest } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
+import { alterarPapel } from "@/lib/team/alterar-papel";
 
 export async function changeMemberRole(
   req: NextRequest,
@@ -46,67 +45,14 @@ export async function changeMemberRole(
     throw err;
   }
 
-  const supabase = await createClient();
-
-  const { data: target, error: fetchErr } = await supabase
-    .from("user_organizations")
-    .select("id, user_id, role, revoked_at")
-    .eq("organization_id", activeOrg.orgId)
-    .eq("user_id", targetUserId)
-    .maybeSingle();
-  if (fetchErr) return fail("internal_error", fetchErr.message, 500, { requestId });
-  if (!target) return fail("not_found", t("Membro não encontrado."), 404, { requestId });
-  if (target.revoked_at) {
-    return fail("state_conflict", t("Membro está revogado."), 409, { requestId });
-  }
-
-  if (target.role === "admin" && input.role !== "admin") {
-    const { count, error: countErr } = await supabase
-      .from("user_organizations")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", activeOrg.orgId)
-      .eq("role", "admin")
-      .is("revoked_at", null);
-    if (countErr) return fail("internal_error", countErr.message, 500, { requestId });
-    if ((count ?? 0) <= 1) {
-      return fail(
-        "state_conflict",
-        t("Não é possível rebaixar o último admin do tenant."),
-        409,
-        { requestId },
-      );
-    }
-  }
-
-  // #3696: derrubar o snapshot ANTES da escrita fecha a janela em que uma tela
-  // que atualiza "ao vivo" (evento → `router.refresh`) pede o valor velho no
-  // meio do UPDATE e o guarda de novo. A invalidação de baixo, depois do
-  // commit, cobre o intervalo que sobra.
-  invalidarUsuario(targetUserId);
-
-  const { error: updErr } = await supabase
-    .from("user_organizations")
-    .update({ role: input.role, updated_at: new Date().toISOString() })
-    .eq("id", target.id);
-  if (updErr) return fail("internal_error", updErr.message, 500, { requestId });
-
-  // #3696: papel novo vale a partir da PRÓXIMA requisição. Sem isto, uma
-  // promoção (ou um rebaixamento) ficaria até 30 s atrás do cache.
-  invalidarUsuario(targetUserId);
-
-  await audit({
-    action: "team.role_changed",
-    actorUserId: authUser.id,
-    organizationId: activeOrg.orgId,
-    resourceType: "membership",
-    resourceId: target.id,
-    requestId,
-    metadata: {
-      target_user_id: targetUserId,
-      old_role: target.role,
-      new_role: input.role,
-    },
+  // Guardas (revogado, último admin), o cache do papel (#3696) e a auditoria
+  // moram em `lib/team/alterar-papel.ts` — a mesma régua do MCP do CRM.
+  const r = await alterarPapel(await createClient(), {
+    orgId: activeOrg.orgId,
+    alvoUserId: targetUserId,
+    papel: input.role,
+    ator: { userId: authUser.id, apiTokenId: null, requestId },
   });
-
-  return ok({ user_id: targetUserId, role: input.role }, { requestId });
+  if (!r.ok) return fail(r.codigo, r.traduzivel ? t(r.mensagem) : r.mensagem, r.status, { requestId });
+  return ok({ user_id: r.user_id, role: r.role }, { requestId });
 }

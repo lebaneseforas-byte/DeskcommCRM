@@ -119,6 +119,19 @@ import {
   crmSaveFollowupFlowDraft,
   crmUpdateMessageTemplate,
 } from "./sequencias";
+import { crmCreateAutomationRule, crmGetAutomationRule, crmUpdateAutomationRule } from "./automacoes";
+import { crmChangeTeamMemberRole, crmInviteTeamMembers, crmListTeamInvites } from "./equipe";
+import {
+  crmCancelCampaign,
+  crmCreateCampaignDraft,
+  crmGetCampaign,
+  crmListCampaigns,
+  crmPauseCampaign,
+  crmPrepareCampaign,
+  crmScheduleCampaign,
+  crmStartCampaign,
+  crmTestCampaign,
+} from "./campanhas";
 import { crmSaveLeadDiagnosis } from "./diagnostico";
 
 // Cast via `unknown` porque McpToolDefinition<TInput> nao e covariante
@@ -185,6 +198,11 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   // read — sequências de follow-up (só gestão; ver `./sequencias.ts`)
   crmListFollowupFlows,
   crmGetFollowupFlow,
+  // read — regras, equipe e campanhas (só gestão; ver `./automacoes.ts`, `./equipe.ts`, `./campanhas.ts`)
+  crmGetAutomationRule,
+  crmListTeamInvites,
+  crmListCampaigns,
+  crmGetCampaign,
   // write
   // A que consulta E marca numa chamada só vem primeiro: quando o cliente já deu
   // dia e hora, é o caminho curto, e é o que evita o turno morrer no meio (#831).
@@ -248,6 +266,20 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   crmDisableFollowupFlow,
   crmCreateMessageTemplate,
   crmUpdateMessageTemplate,
+  // write — regras automáticas (nascem pausadas; ver `./automacoes.ts`)
+  crmCreateAutomationRule,
+  crmUpdateAutomationRule,
+  // write — equipe (nada dá ou tira admin; ver `./equipe.ts`)
+  crmInviteTeamMembers,
+  crmChangeTeamMemberRole,
+  // write — campanhas (ver `./campanhas.ts`)
+  crmCreateCampaignDraft,
+  crmPrepareCampaign,
+  crmTestCampaign,
+  crmStartCampaign,
+  crmScheduleCampaign,
+  crmPauseCampaign,
+  crmCancelCampaign,
   // handoff (special)
   crmRequestHumanHandoff,
 ] as unknown as ReadonlyArray<McpToolDefinition>;

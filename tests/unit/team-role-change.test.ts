@@ -63,9 +63,13 @@ function makeSupabaseStub(state: StubState) {
           return chain;
         },
         update: (values: Record<string, unknown>) => ({
+          // A escrita filtra por id E por organização (`lib/team/alterar-papel.ts`,
+          // que serve também o client de serviço do MCP): o segundo `.eq` é o
+          // mesmo resultado, encadeável.
           eq: () => {
             state.updates.push(values);
-            return Promise.resolve({ error: null });
+            const resultado = Promise.resolve({ error: null });
+            return Object.assign(resultado, { eq: () => resultado });
           },
         }),
       };

@@ -93,6 +93,22 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
   "crm_disable_followup_flow": { tokens: 164, motivo: EDITAR_ASSISTENTES },
   "crm_create_message_template": { tokens: 160, motivo: EDITAR_ASSISTENTES },
   "crm_update_message_template": { tokens: 274, motivo: EDITAR_ASSISTENTES },
+  // Regras, equipe e campanhas (só gestão, por aplicativo conectado); nunca montadas no turno.
+  "crm_get_automation_rule": { tokens: 188, motivo: EDITAR_ASSISTENTES },
+  "crm_create_automation_rule": { tokens: 340, motivo: EDITAR_ASSISTENTES },
+  "crm_update_automation_rule": { tokens: 392, motivo: EDITAR_ASSISTENTES },
+  "crm_list_team_invites": { tokens: 64, motivo: EDITAR_ASSISTENTES },
+  "crm_invite_team_members": { tokens: 225, motivo: EDITAR_ASSISTENTES },
+  "crm_change_team_member_role": { tokens: 226, motivo: EDITAR_ASSISTENTES },
+  "crm_list_campaigns": { tokens: 77, motivo: EDITAR_ASSISTENTES },
+  "crm_get_campaign": { tokens: 169, motivo: EDITAR_ASSISTENTES },
+  "crm_create_campaign_draft": { tokens: 2620, motivo: "campanhas pelo aplicativo conectado: leva o esquema inteiro da tela (público, ritmo, base legal, modelo) — é o que deixa o modelo preencher certo; nunca montada no turno" },
+  "crm_prepare_campaign": { tokens: 177, motivo: EDITAR_ASSISTENTES },
+  "crm_test_campaign": { tokens: 278, motivo: EDITAR_ASSISTENTES },
+  "crm_start_campaign": { tokens: 185, motivo: EDITAR_ASSISTENTES },
+  "crm_schedule_campaign": { tokens: 393, motivo: EDITAR_ASSISTENTES },
+  "crm_pause_campaign": { tokens: 156, motivo: EDITAR_ASSISTENTES },
+  "crm_cancel_campaign": { tokens: 161, motivo: EDITAR_ASSISTENTES },
   "crm_list_contact_orders": { tokens: 234, motivo: BASE },
   "crm_search_products": { tokens: 362, motivo: BASE },
   "crm_get_honorarios_contrato": { tokens: 253, motivo: BASE },
@@ -149,7 +165,7 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
   "crm_archive_stage": { tokens: 454, motivo: BASE },
   "crm_create_webhook_source": { tokens: 363, motivo: BASE },
   "crm_set_webhook_source_active": { tokens: 199, motivo: BASE },
-  "crm_set_automation_rule_active": { tokens: 232, motivo: BASE },
+  "crm_set_automation_rule_active": { tokens: 268, motivo: "a descrição passou a apontar quem cria e edita regra (gestão, por aplicativo conectado, sempre pausada)" },
   "crm_schedule_followup": { tokens: 539, motivo: BASE },
   "crm_enroll_followup_flow": { tokens: 365, motivo: BASE },
   "crm_cancel_followup": { tokens: 254, motivo: BASE },
@@ -225,7 +241,7 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
 // ChatGPT; nenhuma vai para o turno do agente). MEDIDO: 41653 = 39537 + 2116.
 // +478 com `configuracoes` no rascunho do assistente. MEDIDO: 42131 = 41653 + 478.
 // +374 com as 3 de relatório do dia (só gestão). MEDIDO: 42505 = 42131 + 374.
-const TETO_TOTAL = 45433;
+const TETO_TOTAL = 51120;
 
 const VARIANTE = "schedule_followup (com negócio)";
 

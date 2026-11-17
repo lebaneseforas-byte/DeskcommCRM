@@ -15,16 +15,7 @@ import type { NextRequest } from "next/server";
 
 import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { fail, ok } from "@/lib/api/wrappers";
-import { audit } from "@/lib/audit";
-import { FILTRO_VAZIO } from "@/lib/campanhas/audiencia";
-import {
-  camposDeGravacao,
-  decidirConteudo,
-  decidirVelocidade,
-  fraseDaRecusa,
-  lerModoDoCanal,
-} from "@/lib/campanhas/conteudo-do-canal";
-import { gravarPool } from "@/lib/campanhas/pool-de-numeros";
+import { COLUNAS_DA_LISTA_DE_CAMPANHAS, criarCampanha } from "@/lib/campanhas/criar-campanha";
 import {
   codificarCursor,
   criarCampanhaSchema,
@@ -38,10 +29,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const COLUNAS_DA_LISTA =
-  "id, name, status, channel_session_id, snapshot_total, snapshot_eligible, snapshot_excluded, " +
-  "scheduled_at, started_at, completed_at, cancelled_at, created_at, created_by, " +
-  "pipeline_id, stage_id, agent_id, message_mode, email_subject, provider_template_name";
+const COLUNAS_DA_LISTA = COLUNAS_DA_LISTA_DE_CAMPANHAS;
 
 export async function GET(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
@@ -130,119 +118,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   const entrada = parsed.data;
 
   // Client ADMIN na escrita, e não o da sessão: a migration 0375 concede ao
-  // papel `authenticated` apenas SELECT (a tela lê; só o servidor escreve), e o
-  // PostgREST com o JWT do usuário recebe "permission denied for table
-  // campaigns" — medido na VPS em 19/09/2026, pela tela. O isolamento não se
-  // perde: `org.orgId` vem do `requireRole()` acima, nunca do corpo, e entra
-  // explicitamente em toda consulta abaixo.
-  const supabase = createAdminClient();
-  // A conexão é conferida CONTRA A ORGANIZAÇÃO: a FK composta da 0375 recusaria
-  // o número de outro tenant, mas a recusa do banco chegaria como erro genérico.
-  // Sem número, o canal é E-MAIL: não há linha a conferir, e o formato vem da
-  // capability do canal (o esquema já recusou número junto com `canal: email`).
-  const canal = await lerModoDoCanal(supabase, org.orgId, entrada.channel_session_id ?? null);
-  if (!canal.existe) {
-    return fail(
-      "campanha_canal_indisponivel",
-      t("Escolha uma conexão de WhatsApp desta organização."),
-      409,
-      { requestId },
-    );
-  }
-  // O conteúdo segue o que o canal aceita: texto livre no QR, modelo aprovado no
-  // oficial (migration 0710), assunto + corpo no e-mail (9334). O modelo
-  // escolhido é conferido inteiro aqui, e a conta Resend também.
-  const conteudo = await decidirConteudo(supabase, {
-    organizationId: org.orgId,
-    channelSessionId: entrada.channel_session_id ?? null,
-    extras: entrada.channel_session_ids ?? [],
-    modoDoCanal: canal.modo,
-    pedido: entrada,
-  });
-  if (!conteudo.ok) {
-    return fail(conteudo.codigo, t(conteudo.mensagem), conteudo.status, { requestId });
-  }
-  // Rápida e broadcast só com modelo aprovado (migrations 0711 e 0712); o
-  // broadcast, só no número que o faz e com variáveis de texto fixo.
-  const velocidade = decidirVelocidade({
-    pedida: entrada.velocidade,
-    atual: "gradual",
-    modo: conteudo.modo,
-    transmissao: canal.transmissao,
-    variaveis: conteudo.colunas.provider_template_variables,
-  });
-  if (!velocidade.ok) {
-    return fail(velocidade.codigo, fraseDaRecusa(velocidade, t), velocidade.status, { requestId });
-  }
-
-  const { data, error } = await supabase
-    .from("campaigns")
-    .insert({
-      organization_id: org.orgId,
-      name: entrada.name,
-      description: entrada.description ?? null,
-      channel_session_id: entrada.channel_session_id ?? null,
-      // A MESMA decisão que validou vira linha: assunto, modo e corpo saem
-      // juntos daqui (`camposDeGravacao`), sem a rota reescrever o texto.
-      ...camposDeGravacao(conteudo, entrada.message_body),
-      base_legal: entrada.base_legal,
-      lia_ref: entrada.lia_ref ?? null,
-      audience_filter: entrada.audience_filter ?? FILTRO_VAZIO,
-      intervalo_segundos: entrada.intervalo_segundos ?? null,
-      janela_inicio_hora: entrada.janela_inicio_hora ?? null,
-      janela_fim_hora: entrada.janela_fim_hora ?? null,
-      teto_diario: entrada.teto_diario ?? null,
-      teto_horario: entrada.teto_horario ?? null,
-      velocidade: velocidade.velocidade,
-      split_messages: entrada.split_messages ?? false,
-      pipeline_id: entrada.pipeline_id ?? null,
-      stage_id: entrada.stage_id ?? null,
-      agent_id: entrada.agent_id ?? null,
-      created_by: autor,
-    })
-    .select(COLUNAS_DA_LISTA)
-    .single();
-  if (error || !data) {
-    return fail("internal_error", error?.message ?? t("Não foi possível criar a campanha."), 500, {
-      requestId,
-    });
-  }
-
-  const criada = data as unknown as { id: string };
-  // Campanha de e-mail não tem número (o esquema já recusou `channel_session_ids`
-  // junto com `canal: email`), então o pool só existe no caminho do WhatsApp.
-  if ((entrada.channel_session_ids ?? []).length > 0 && entrada.channel_session_id) {
-    // Falha do pool NÃO derruba a criação: a campanha existe e fala pelo número
-    // principal. Devolver erro aqui faria o operador achar que nada foi criado
-    // e criar de novo.
-    try {
-      await gravarPool(supabase, {
-        organizationId: org.orgId,
-        campanhaId: criada.id,
-        principal: entrada.channel_session_id,
-        extras: entrada.channel_session_ids ?? [],
-      });
-    } catch {
-      // O texto real já foi para o log do Supabase; a tela mostra o pool salvo
-      // quando recarrega, que é a fonte da verdade.
-    }
-  }
-
-  void audit({
-    action: "campaign.created",
-    actorUserId: autor,
-    actorApiTokenId: authz.apiTokenId ?? null,
-    organizationId: org.orgId,
-    resourceType: "campaign",
-    resourceId: criada.id,
+  // papel `authenticated` apenas SELECT (a tela lê; só o servidor escreve). O
+  // isolamento não se perde: `org.orgId` vem da autenticação acima, nunca do
+  // corpo. A conferência do canal, do conteúdo e da velocidade, o pool e a
+  // auditoria moram em `lib/campanhas/criar-campanha.ts` — a mesma do MCP.
+  const r = await criarCampanha(createAdminClient(), {
+    orgId: org.orgId,
+    entrada,
+    autorUserId: autor,
+    apiTokenId: authz.apiTokenId ?? null,
     requestId,
-    metadata: {
-      base_legal: entrada.base_legal,
-      numeros: 1 + (entrada.channel_session_ids ?? []).length,
-      modo: conteudo.modo,
-      ...(conteudo.colunas.provider_template_name ? { modelo: conteudo.colunas.provider_template_name } : {}),
-    },
+    t,
   });
+  if (!r.ok) return fail(r.codigo, r.mensagem, r.status, { requestId });
+  const data = r.campanha;
 
   return ok(data, { requestId, status: 201 });
 }

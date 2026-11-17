@@ -47,7 +47,7 @@ export const ritmoSchema = z.object({
   split_messages: z.boolean().optional(),
 });
 
-const baseDaCampanha = {
+export const baseDaCampanha = {
   name: z.string().trim().min(1).max(160),
   description: z.string().trim().max(4000).nullable().optional(),
   /**
